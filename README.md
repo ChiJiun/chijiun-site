@@ -15,7 +15,6 @@
   - 「經歷」是一個編輯器視窗：點一下之後用 `j`/`k` 移動、`h`/`l` 切換檔案、Enter 開連結。
   - `:` 或 `/` 開指令列（`:theme`、`:e awards`、`:sound`、`:help`），Ctrl K 搜尋。
 - `site/404.html`：找不到的網址導回首頁。
-- `site/preview/`：三個版型的原型（互動鍵盤、編輯器、生成背景），供比較用。
 - `.github/workflows/deploy.yml`：push 到 `main` 時把 `site/` 部署到 GitHub Pages。
 
 ## 本機預覽
