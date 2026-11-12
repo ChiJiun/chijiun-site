@@ -8,8 +8,8 @@
     <meta property="og:title" content="翁祺鈞 Chi-Jiun Wong" />
     <meta property="og:description" content="可驗證的隱私保護機器學習、區塊鏈與金融科技。" />
     <meta property="og:url" content="https://chijiun.github.io/" />
-    <meta name="theme-color" content="#0b0b10" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0b10'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='16' font-weight='700' fill='%23ff8a65'%3ECJ%3C/text%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#0a0f22" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0f22'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='16' font-weight='700' fill='%237dd3fc'%3ECJ%3C/text%3E%3C/svg%3E" />
     <script>
       try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
     </script>
@@ -25,6 +25,7 @@
       <a class="sec" href="#research">研究</a>
       <a class="sec" href="#experience">經歷</a>
       <a class="sec" href="#projects">作品</a>
+      <a class="sec" id="nav-contact" href="#contact" hidden>聯絡</a>
       <button id="open-pal" type="button" aria-label="開啟指令面板">Ctrl K</button>
       <button id="theme" type="button" aria-label="切換深色或淺色">◐</button>
     </nav>
@@ -34,7 +35,6 @@
         <div>
           <p class="tagline" id="tagline"></p>
           <h1 id="name"></h1>
-          <p class="zh" id="zh"></p>
           <p class="intro" id="intro"></p>
           <p class="motto" id="motto"></p>
           <div class="links" id="links"></div>
@@ -52,13 +52,13 @@
       </header>
 
       <section class="section wrap" id="research">
-        <div class="sh"><span class="no">01</span><h2>研究</h2></div>
+        <div class="sh"><h2>研究</h2></div>
         <div class="interests" id="interests"></div>
         <div id="studies"></div>
       </section>
 
       <section class="section wrap" id="experience">
-        <div class="sh"><span class="no">02</span><h2>經歷</h2><span class="hint">點一下視窗，用 j / k 讀</span></div>
+        <div class="sh"><h2>經歷</h2><span class="hint">點一下視窗，用 j / k 讀</span></div>
         <div class="win rise" id="win">
           <div class="titlebar">
             <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -75,10 +75,25 @@
       </section>
 
       <section class="section wrap" id="projects">
-        <div class="sh"><span class="no">03</span><h2>作品</h2></div>
+        <div class="sh"><h2>作品</h2></div>
         <ul class="cards" id="cards"></ul>
         <p class="more-title">MORE</p>
         <ul class="more" id="more"></ul>
+      </section>
+
+      <section class="section wrap" id="contact" hidden>
+        <div class="sh"><h2>聯絡</h2></div>
+        <p class="contact-lead">有合作、研究或實習的事想聊，直接在這裡寫信給我。</p>
+        <form class="panel contact rise" id="contact-form">
+          <label>怎麼稱呼你<input name="name" type="text" autocomplete="name" required maxlength="80" /></label>
+          <label>你的 Email（我回信用）<input name="email" type="email" autocomplete="email" required maxlength="120" /></label>
+          <label class="full">想說的話<textarea name="message" required maxlength="4000"></textarea></label>
+          <input class="trap" type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <div class="row full">
+            <button id="contact-send" type="submit">寄出</button>
+            <span class="note" id="contact-note" role="status"></span>
+          </div>
+        </form>
       </section>
     </main>
 

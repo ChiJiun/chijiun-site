@@ -18,6 +18,11 @@ export const me = {
   ],
 };
 
+// Contact form. The section stays hidden until one of these is filled in.
+// accessKey: a Web3Forms access key (the form posts there and the address stays private).
+// email: fallback that opens the visitor's mail app instead; this address becomes public.
+export const contact = { accessKey: '', email: '' };
+
 export const interests = [
   { title: '可信任與隱私保護機器學習', text: 'Verifiable computation、Zero-Knowledge Proof、Differential Privacy、Federated Learning。' },
   { title: '嚴謹評估與可重現研究', text: '資料洩漏辨識、統計檢定、負向測試，以及可稽核的實驗流程。' },

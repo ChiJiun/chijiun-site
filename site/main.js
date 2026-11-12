@@ -1,4 +1,4 @@
-import { me, interests, research, experience, projects, more, skills, cats, repoUrl } from './data.js';
+import { me, interests, research, experience, projects, more, skills, cats, contact, repoUrl } from './data.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
@@ -14,8 +14,7 @@ const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
 const smooth = reduced ? 'auto' : 'smooth';
 
 // ---------- content ----------
-$('tagline').textContent = me.tagline;
-$('zh').textContent = me.zh;
+$('tagline').textContent = `${me.zh} · ${me.tagline}`;
 $('intro').textContent = me.intro;
 $('motto').textContent = me.motto;
 const h1 = $('name');
@@ -94,7 +93,9 @@ function say(text) {
   clearTimeout(sayTimer);
   sayTimer = setTimeout(() => { stMsg.textContent = IDLE; stMsg.classList.remove('say'); }, 4200);
 }
+const contactOn = Boolean(contact.accessKey || contact.email);
 const SECTIONS = [['top', 'about.md'], ['research', 'research.md'], ['experience', 'experience/'], ['projects', 'projects.md']];
+if (contactOn) SECTIONS.push(['contact', 'contact.md']);
 function onScroll() {
   const max = root.scrollHeight - innerHeight;
   $('st-pos').textContent = `${max > 0 ? Math.round((scrollY / max) * 100) : 0}%`;
@@ -106,93 +107,72 @@ addEventListener('scroll', onScroll, { passive: true });
 onScroll();
 const goTo = (id) => (id === 'top' ? scrollTo({ top: 0, behavior: smooth }) : $(id).scrollIntoView({ behavior: smooth }));
 
-// ---------- flow-field background ----------
+// ---------- dot-field background ----------
+// Named `flow` for its two callers: burst() on key presses, recolor() on theme change.
 const flow = (() => {
   const cv = $('bg');
   const ctx = cv.getContext('2d');
-  const ptr = { x: -9999, y: -9999 };
-  const R = 230, BURST = 700;
-  let W = 0, H = 0, parts = [], bursts = [], ink = '', accent = '', raf = 0, t = Math.random() * 100;
+  const GAP = 32, R = 140, LIFE = 1400;
+  const mouse = { x: -9999, y: -9999 };
+  let W = 0, H = 0, pts = [], ripples = [], ink = '', raf = 0;
 
-  const readColors = () => {
-    const cs = getComputedStyle(root);
-    ink = cs.getPropertyValue('--ink').trim();
-    accent = cs.getPropertyValue('--accent-rgb').trim();
-  };
-  const spawn = () => ({ x: Math.random() * W, y: Math.random() * H, life: 60 + Math.random() * 260 });
+  const readColors = () => { ink = getComputedStyle(root).getPropertyValue('--ink').trim(); };
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = `rgb(${ink})`;
+    for (const p of pts) {
+      const disp = Math.hypot(p.x - p.ox, p.y - p.oy);
+      ctx.globalAlpha = Math.min(1, 0.16 + disp / 12);
+      const size = 1.3 + Math.min(2.4, disp / 5);
+      ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
+    }
+    ctx.globalAlpha = 1;
+  }
   function resize() {
     const dpr = Math.min(devicePixelRatio || 1, 2);
     W = innerWidth; H = innerHeight;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    parts = Array.from({ length: Math.round(Math.min(800, (W * H) / 2400)) }, spawn);
-    if (reduced) still();
+    pts = [];
+    for (let y = GAP / 2; y < H; y += GAP) for (let x = GAP / 2; x < W; x += GAP) pts.push({ ox: x, oy: y, x, y, vx: 0, vy: 0 });
+    draw();
   }
-  const angle = (x, y) =>
-    (Math.sin(x * 0.0023 + t * 0.6) + Math.cos(y * 0.0029 - t * 0.4) + Math.sin((x + y) * 0.0011 + t * 0.3)) * Math.PI * 0.66;
-
-  function step(fade) {
-    t += 0.004;
+  function step() {
     const now = performance.now();
-    bursts = bursts.filter((b) => now - b.t < BURST);
-    if (fade) {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = 'rgba(0, 0, 0, .07)';
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalCompositeOperation = 'source-over';
-    }
-    const far = new Path2D(), near = new Path2D();
-    const r2 = R * R;
-    for (const p of parts) {
-      const a = angle(p.x, p.y);
-      let vx = Math.cos(a) * 1.4, vy = Math.sin(a) * 1.4, hot = false;
-      const dx = p.x - ptr.x, dy = p.y - ptr.y, d2 = dx * dx + dy * dy;
-      if (d2 < r2) {
-        const d = Math.sqrt(d2) || 1, f = 1 - d / R;
-        vx += (-dy / d) * f * 3.4 - (dx / d) * f * 0.5;
-        vy += (dx / d) * f * 3.4 - (dy / d) * f * 0.5;
-        hot = true;
+    ripples = ripples.filter((r) => now - r.t < LIFE);
+    let energy = 0;
+    for (const p of pts) {
+      let fx = (p.ox - p.x) * 0.06, fy = (p.oy - p.y) * 0.06;
+      const mx = p.x - mouse.x, my = p.y - mouse.y, md = Math.hypot(mx, my) || 1;
+      if (md < R) { const f = (1 - md / R) * 2.4; fx += (mx / md) * f; fy += (my / md) * f; }
+      for (const r of ripples) {
+        const age = (now - r.t) / LIFE, rx = p.ox - r.x, ry = p.oy - r.y, rd = Math.hypot(rx, ry) || 1;
+        const diff = Math.abs(rd - age * 560);
+        if (diff < 44) { const f = (1 - diff / 44) * (1 - age) * 1.8; fx += (rx / rd) * f; fy += (ry / rd) * f; }
       }
-      for (const b of bursts) {
-        const bx = p.x - b.x, by = p.y - b.y, bd = Math.hypot(bx, by) || 1;
-        if (bd < 280) {
-          const f = (1 - bd / 280) * (1 - (now - b.t) / BURST) * 6;
-          vx += (bx / bd) * f; vy += (by / bd) * f;
-          hot = true;
-        }
-      }
-      const nx = p.x + vx, ny = p.y + vy;
-      const path = hot ? near : far;
-      path.moveTo(p.x, p.y); path.lineTo(nx, ny);
-      p.x = nx; p.y = ny;
-      if (--p.life < 0 || nx < 0 || nx > W || ny < 0 || ny > H) Object.assign(p, spawn());
+      p.vx = (p.vx + fx) * 0.82; p.vy = (p.vy + fy) * 0.82;
+      p.x += p.vx; p.y += p.vy;
+      energy += Math.abs(p.vx) + Math.abs(p.vy);
     }
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = `rgba(${ink}, ${fade ? 0.36 : 0.07})`;
-    ctx.stroke(far);
-    ctx.strokeStyle = `rgba(${accent}, ${fade ? 0.85 : 0.07})`;
-    ctx.stroke(near);
+    draw();
+    raf = energy > 0.6 || ripples.length ? requestAnimationFrame(step) : 0;
   }
-  function still() {
-    ctx.clearRect(0, 0, W, H);
-    for (let i = 0; i < 160; i++) step(false);
-  }
-  function loop() { step(true); raf = requestAnimationFrame(loop); }
-  const start = () => { if (!reduced && !raf && !document.hidden) raf = requestAnimationFrame(loop); };
-  const stop = () => { cancelAnimationFrame(raf); raf = 0; };
+  const wake = () => { if (!raf && !reduced) raf = requestAnimationFrame(step); };
+  const ripple = (x, y) => { ripples.push({ x, y, t: performance.now() }); wake(); };
+  const leave = () => { mouse.x = mouse.y = -9999; wake(); };
 
   readColors();
   resize();
-  start();
   addEventListener('resize', resize);
-  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
-  addEventListener('pointermove', (e) => { ptr.x = e.clientX; ptr.y = e.clientY; });
-  addEventListener('pointerdown', (e) => { if (!e.target.closest('.key')) bursts.push({ x: e.clientX, y: e.clientY, t: performance.now() }); });
-  root.addEventListener('pointerleave', () => { ptr.x = ptr.y = -9999; });
+  addEventListener('pointermove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; wake(); });
+  addEventListener('pointerdown', (e) => { if (!e.target.closest('.key')) ripple(e.clientX, e.clientY); });
+  addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') leave(); });
+  addEventListener('pointercancel', leave);
+  root.addEventListener('pointerleave', leave);
 
   return {
-    burst(x, y) { bursts.push({ x, y, t: performance.now() }); },
-    recolor() { readColors(); if (reduced) still(); },
+    burst: ripple,
+    recolor() { readColors(); draw(); },
   };
 })();
 
@@ -226,6 +206,7 @@ hudIdle();
 
 // ---------- keyboard ----------
 const NAV = { 1: ['研', 'research', '研究'], 2: ['經', 'experience', '經歷'], 3: ['作', 'projects', '作品'], 0: ['↑', 'top', '頁首'] };
+if (contactOn) NAV[4] = ['信', 'contact', '聯絡'];
 const ROWS = ['1234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 const kb = $('kb');
 const keys = new Map();
@@ -463,6 +444,42 @@ const editor = (() => {
   };
 })();
 
+// ---------- contact form ----------
+if (contactOn) {
+  $('contact').hidden = false;
+  $('nav-contact').hidden = false;
+  const form = $('contact-form'), note = $('contact-note'), send = $('contact-send');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const d = new FormData(form);
+    if (d.get('botcheck')) return;
+    const name = d.get('name').trim(), email = d.get('email').trim(), message = d.get('message').trim();
+    const subject = `[chijiun.github.io] ${name} 的來信`;
+    if (!contact.accessKey) {
+      location.href = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${message}\n\n— ${name} <${email}>`)}`;
+      note.textContent = '已經幫你開啟郵件程式，按下寄出就可以了。';
+      return;
+    }
+    send.disabled = true;
+    note.textContent = '寄送中…';
+    try {
+      const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ access_key: contact.accessKey, subject, from_name: name, name, email, message }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      form.reset();
+      note.textContent = '寄出了，謝謝你。我會盡快回信。';
+    } catch {
+      note.textContent = '寄送失敗，請稍後再試，或改用 LinkedIn 聯絡我。';
+    } finally {
+      send.disabled = false;
+    }
+  });
+}
+
 // ---------- theme: circular reveal via View Transitions ----------
 function toggleTheme(e) {
   const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
@@ -473,7 +490,7 @@ function toggleTheme(e) {
     root.classList.add('switching');
     setTimeout(() => root.classList.remove('switching'), 80);
     root.dataset.theme = next;
-    document.querySelector('meta[name="theme-color"]').content = next === 'dark' ? '#0b0b10' : '#f5f2ec';
+    document.querySelector('meta[name="theme-color"]').content = next === 'dark' ? '#0a0f22' : '#f6f8fc';
     try { localStorage.setItem('theme', next); } catch {}
     flow.recolor();
   };
@@ -500,6 +517,7 @@ const cmds = [
   { label: '經歷', alias: ':e experience', run: () => goTo('experience') },
   { label: '作品', alias: ':e projects', run: () => goTo('projects') },
   ...editor.files.map((f, i) => ({ label: `經歷 › ${f.name}`, alias: `:e ${f.name.split('.')[0]}`, run: () => editor.show(i) })),
+  ...(contactOn ? [{ label: '寫信給我', alias: ':mail', run: () => { goTo('contact'); $('contact-form').elements.namedItem('name').focus({ preventScroll: true }); } }] : []),
   { label: '切換深色／淺色', alias: ':theme', run: () => toggleTheme() },
   { label: '按鍵音效 開／關', alias: ':sound', run: toggleSound },
   { label: '快捷鍵說明', alias: ':help', run: () => editor.show(editor.files.length - 1) },
