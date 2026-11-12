@@ -21,7 +21,7 @@ export const me = {
 // Contact form. The section stays hidden until one of these is filled in.
 // accessKey: a Web3Forms access key (the form posts there and the address stays private).
 // email: fallback that opens the visitor's mail app instead; this address becomes public.
-export const contact = { accessKey: '', email: '' };
+export const contact = { accessKey: '', email: '0311gino@gmail.com' };
 
 export const interests = [
   { title: '可信任與隱私保護機器學習', text: 'Verifiable computation、Zero-Knowledge Proof、Differential Privacy、Federated Learning。' },

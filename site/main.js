@@ -83,7 +83,7 @@ for (const c of Object.values(cats)) {
 }
 
 // ---------- status bar ----------
-const IDLE = finePointer ? '字母鍵：技能 · 1 2 3：區塊 · :：指令 · Ctrl K：搜尋' : '點鍵帽看技能 · 右上角開指令面板';
+const IDLE = finePointer ? '字母鍵：技能 · 1–4：區塊 · :：指令 · Ctrl K：搜尋' : '點鍵帽看技能 · 右上角開指令面板';
 const stMsg = $('st-msg');
 let sayTimer = 0;
 stMsg.textContent = IDLE;
@@ -95,7 +95,11 @@ function say(text) {
 }
 const contactOn = Boolean(contact.accessKey || contact.email);
 const SECTIONS = [['top', 'about.md'], ['research', 'research.md'], ['experience', 'experience/'], ['projects', 'projects.md']];
-if (contactOn) SECTIONS.push(['contact', 'contact.md']);
+if (contactOn) {
+  $('contact').hidden = false;
+  $('nav-contact').hidden = false;
+  SECTIONS.push(['contact', 'contact.md']);
+}
 function onScroll() {
   const max = root.scrollHeight - innerHeight;
   $('st-pos').textContent = `${max > 0 ? Math.round((scrollY / max) * 100) : 0}%`;
@@ -347,7 +351,7 @@ const editor = (() => {
         ['blank'],
         ['h2', '整個頁面'],
         ['li', '字母鍵　　看那個鍵帽代表的技能'],
-        ['li', '1 2 3 0　 研究、經歷、作品、頁首'],
+        ['li', '1 2 3 4 0  研究、經歷、作品、聯絡、頁首'],
         ['li', ': 或 /　　開指令列，例如 :theme、:e awards、:sound'],
         ['li', 'Ctrl K　　搜尋想去的地方或作品'],
         ['blank'],
@@ -446,8 +450,11 @@ const editor = (() => {
 
 // ---------- contact form ----------
 if (contactOn) {
-  $('contact').hidden = false;
-  $('nav-contact').hidden = false;
+  if (contact.email) {
+    const direct = el('a', '', contact.email);
+    direct.href = `mailto:${contact.email}`;
+    $('contact-direct').append('也可以直接寄到 ', direct, '。');
+  }
   const form = $('contact-form'), note = $('contact-note'), send = $('contact-send');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

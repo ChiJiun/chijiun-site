@@ -201,6 +201,7 @@ main, footer { position: relative; z-index: 1; }
 .contact button:disabled { opacity: .6; cursor: wait; }
 .contact .note { font-size: 14.5px; color: var(--dim); }
 .contact-lead { max-width: 760px; margin-bottom: 20px; color: var(--dim); }
+.contact-lead a { color: var(--accent); text-underline-offset: 5px; }
 [hidden] { display: none !important; }
 
 .footer { padding-block: 30px 50px; color: var(--dim); font-size: 14px; }
