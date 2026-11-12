@@ -1,329 +1,104 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>翁祺鈞 Chi-Jiun Wong</title>
-    <meta name="description" content="翁祺鈞的個人網站：中央大學資工系、輔系財金。做可驗證的機器學習、量化回測與跑在免費額度上的小工具。" />
+    <meta name="description" content="翁祺鈞的個人網站：中央大學資工系、輔修財金。研究聯邦學習裡差分隱私的零知識證明，興趣在區塊鏈、金融科技與軟體工程。" />
     <meta property="og:title" content="翁祺鈞 Chi-Jiun Wong" />
-    <meta property="og:description" content="可驗證的機器學習、量化回測，與跑在免費額度上的小工具。" />
+    <meta property="og:description" content="可驗證的隱私保護機器學習、區塊鏈與金融科技。" />
     <meta property="og:url" content="https://chijiun.github.io/" />
-    <meta name="theme-color" content="#141a33" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23141a33'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='16' font-weight='700' fill='%237dd3fc'%3ECJ%3C/text%3E%3C/svg%3E" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <meta name="theme-color" content="#0b0b10" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0b10'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='16' font-weight='700' fill='%23ff8a65'%3ECJ%3C/text%3E%3C/svg%3E" />
+    <script>
+      try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+    </script>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <a class="skip" href="#main">跳到主要內容</a>
+    <canvas id="bg" aria-hidden="true"></canvas>
+    <div class="progress" aria-hidden="true"></div>
 
-    <nav class="nav" id="nav" aria-label="主選單">
-      <div class="container nav-inner">
-        <a class="brand" href="#top">Chi-Jiun<span>.</span></a>
-        <div class="nav-links">
-          <a href="#education">學歷</a>
-          <a href="#research">研究</a>
-          <a href="#projects">作品</a>
-          <a href="#talks">報告</a>
-          <a href="#skills">技能</a>
-        </div>
-      </div>
+    <nav class="nav" aria-label="主選單">
+      <a class="brand" href="#top">Chi-Jiun<span>.</span></a>
+      <a class="sec" href="#research">研究</a>
+      <a class="sec" href="#experience">經歷</a>
+      <a class="sec" href="#projects">作品</a>
+      <button id="open-pal" type="button" aria-label="開啟指令面板">Ctrl K</button>
+      <button id="theme" type="button" aria-label="切換深色或淺色">◐</button>
     </nav>
 
-    <header class="hero" id="top">
-      <div class="container">
-        <p class="hero-kicker">翁祺鈞 · NCU CSIE × Finance</p>
-        <h1>Chi-Jiun <span>Wong</span></h1>
-        <p class="hero-lead">
-          中央大學<u>資訊工程學系</u>、輔系<u>財務金融</u>。國科會大專生研究計畫做的是聯邦學習的可驗證差分隱私；課餘寫量化回測、交易與放貸機器人，也做跑在免費額度上的小工具。
-        </p>
-        <p class="hero-lead dim">
-          這個網站上的每個數字都來自連結的 repo，旁邊寫著它的限制；團隊專案只寫我負責的部分。
-        </p>
-        <blockquote class="hero-motto">這個世界就是一個巨大的草台班子，所以弄假直到成真。</blockquote>
-        <div class="hero-actions">
-          <a class="btn btn-primary" href="#projects">看作品</a>
-          <a class="icon-link" href="https://github.com/ChiJiun" target="_blank" rel="noreferrer" aria-label="GitHub">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
-          </a>
-          <a class="icon-link" href="https://www.linkedin.com/in/chijiun-wong-471716336/" target="_blank" rel="noreferrer" aria-label="LinkedIn">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0Z"/></svg>
-          </a>
-        </div>
-      </div>
-    </header>
-
     <main id="main">
-      <section class="section" id="education">
-        <div class="container">
-          <h2 class="section-title">學歷</h2>
-          <div class="timeline">
-            <div class="timeline-item reveal">
-              <div class="timeline-header">
-                <div>
-                  <h3 class="timeline-title">資訊工程學系 學士 · 輔系 財務金融</h3>
-                  <h4 class="timeline-org">國立中央大學</h4>
-                </div>
-                <span class="pill">2023.09 – 現在</span>
-              </div>
-            </div>
+      <header class="hero wrap" id="top">
+        <div>
+          <p class="tagline" id="tagline"></p>
+          <h1 id="name"></h1>
+          <p class="zh" id="zh"></p>
+          <p class="intro" id="intro"></p>
+          <p class="motto" id="motto"></p>
+          <div class="links" id="links"></div>
+        </div>
+        <div class="deck">
+          <div class="hud" id="hud" aria-live="polite"></div>
+          <div class="kb-stage">
+            <div class="kb" id="kb" role="group" aria-label="互動鍵盤：按實體鍵盤的字母鍵，或點鍵帽，看每項技能用在哪裡"></div>
+          </div>
+          <div class="deck-foot">
+            <div class="legend" id="legend"></div>
+            <button class="sound" id="sound" type="button" aria-pressed="false">按鍵音效：關</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="section wrap" id="research">
+        <div class="sh"><span class="no">01</span><h2>研究</h2></div>
+        <div class="interests" id="interests"></div>
+        <div id="studies"></div>
+      </section>
+
+      <section class="section wrap" id="experience">
+        <div class="sh"><span class="no">02</span><h2>經歷</h2><span class="hint">點一下視窗，用 j / k 讀</span></div>
+        <div class="win rise" id="win">
+          <div class="titlebar">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="name" id="ed-title"></span>
+          </div>
+          <div class="tabs" id="tabs" role="tablist" aria-label="經歷檔案"></div>
+          <div class="buf" id="buf" tabindex="0" role="tabpanel" aria-label="檔案內容"></div>
+          <div class="edbar">
+            <span class="mode">NORMAL</span>
+            <span class="hint" id="ed-hint"></span>
+            <span class="pos" id="ed-pos"></span>
           </div>
         </div>
       </section>
 
-      <section class="section alt" id="research">
-        <div class="container">
-          <h2 class="section-title">研究</h2>
-          <div class="timeline">
-            <div class="timeline-item reveal">
-              <div class="timeline-header">
-                <div>
-                  <h3 class="timeline-title">聯邦學習的可驗證差分隱私</h3>
-                  <h4 class="timeline-org">國科會大專生研究計畫 · 國立中央大學</h4>
-                </div>
-                <span class="pill">進行中</span>
-              </div>
-              <ul class="timeline-desc">
-                <li>用零知識證明（Halo2 / EZKL）證明每個 client 的模型更新都有正確地裁剪（clip）並加上雜訊。</li>
-                <li>合成資料上，逐次更新的 Halo2 證明 <strong>150/150</strong> 全數通過驗證。</li>
-                <li>限制：界內攻擊同樣 <strong>300/300</strong> 通過。證明只保證更新不越界，不保證它是善意的。</li>
-              </ul>
-              <a class="text-link" href="https://github.com/ChiJiun/zk-verifiable-dp-fl" target="_blank" rel="noreferrer">zk-verifiable-dp-fl →</a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="projects">
-        <div class="container">
-          <h2 class="section-title">作品</h2>
-          <div class="cards">
-            <article class="card reveal">
-              <div class="card-top">
-                <span class="badge badge-award">黑客松</span>
-                <span class="pill">2026</span>
-              </div>
-              <h3 class="card-title">加密市場分析 AI Agent</h3>
-              <p class="card-sub">2026 雲湧智生：臺灣生成式 AI 應用黑客松 · HOYA BIT 命題</p>
-              <p>輸入幣種與分析題目，Agent 蒐集多源資料、交叉比對訊號，產出每條判斷都能回溯來源的結構化報告。</p>
-              <p class="card-note">我負責 agent loop、平行預取、問題路由、15 個資料工具與報告 schema。</p>
-              <div class="card-foot">
-                <div class="tags"><span>Python</span><span>LLM Agent</span><span>AWS</span></div>
-                <a class="text-link" href="https://github.com/ChiJiun/aws-hoyabit" target="_blank" rel="noreferrer">repo →</a>
-              </div>
-            </article>
-
-            <article class="card reveal">
-              <div class="card-top">
-                <span class="badge">量化回測</span>
-                <span class="pill">2018 – 2026</span>
-              </div>
-              <h3 class="card-title">台指期法人強度＋價格趨勢回測</h3>
-              <p class="card-sub">1,968 個交易日、約 8.1 年，一口 TX</p>
-              <div class="mini-stats">
-                <div><strong>1.367</strong><span>Sharpe（買進持有 1.147）</span></div>
-                <div><strong>12.72%</strong><span>最大回撤（買進持有 28.64%）</span></div>
-              </div>
-              <p class="card-note">限制：CAGR 11.94%，低於買進持有的 21.27%；持倉天數較少，低回撤要和較低的市場參與一起看。</p>
-              <div class="card-foot">
-                <div class="tags"><span>Python</span><span>Backtest</span><span>Bootstrap</span></div>
-                <a class="text-link" href="https://github.com/ChiJiun/tx-flow-trend-backtest" target="_blank" rel="noreferrer">repo →</a>
-              </div>
-            </article>
-
-            <article class="card reveal">
-              <div class="card-top">
-                <span class="badge">監測服務</span>
-              </div>
-              <h3 class="card-title">mvdis-watch</h3>
-              <p class="card-sub">監理站考照報名餘額監測</p>
-              <p>掃描全台 36 個監理站 × 10 種照類，共 360 組場次的報名餘額。</p>
-              <p class="card-note">全部跑在一個 Cloudflare Worker 的免費額度上。</p>
-              <div class="card-foot">
-                <div class="tags"><span>TypeScript</span><span>Cloudflare Workers</span></div>
-                <a class="text-link" href="https://github.com/ChiJiun/mvdis-watch" target="_blank" rel="noreferrer">repo →</a>
-              </div>
-            </article>
-
-            <article class="card reveal">
-              <div class="card-top">
-                <span class="badge">教學工具</span>
-              </div>
-              <h3 class="card-title">StatsDiscordBot</h3>
-              <p class="card-sub">統計作業回饋 Discord 機器人</p>
-              <p>約 150 位學生使用，用 LLM 對統計作業給回饋。</p>
-              <p class="card-note">我負責 bot 核心：登入、HTML 解析、LLM 呼叫、儲存與 Drive 同步。</p>
-              <div class="card-foot">
-                <div class="tags"><span>Python</span><span>Discord</span><span>LLM</span></div>
-                <a class="text-link" href="https://github.com/ChiJiun/StatsDiscordBot" target="_blank" rel="noreferrer">repo →</a>
-              </div>
-            </article>
-
-            <article class="card reveal">
-              <div class="card-top">
-                <span class="badge">交易機器人</span>
-              </div>
-              <h3 class="card-title">bitfinex-lending-bot</h3>
-              <p class="card-sub">Bitfinex 放貸機器人</p>
-              <p>依實際成交分層掛單的資金放貸策略。</p>
-              <p class="card-note">限制：250 小時內從未觸及 FRR。</p>
-              <div class="card-foot">
-                <div class="tags"><span>Python</span></div>
-                <a class="text-link" href="https://github.com/ChiJiun/bitfinex-lending-bot" target="_blank" rel="noreferrer">repo →</a>
-              </div>
-            </article>
-
-            <article class="card reveal">
-              <div class="card-top">
-                <span class="badge">Web3</span>
-                <span class="pill">開發中</span>
-              </div>
-              <h3 class="card-title">Verified Human Attention Market</h3>
-              <p class="card-sub">可驗證真人注意力的市場與協定</p>
-              <p>讓廣告主與 AI agent 出資任務、經驗證的真人完成任務，以 USDC 透明結算。</p>
-              <p class="card-note">已有 monorepo 與 CampaignManager 合約基線，含 Foundry 單元、fuzz 與 invariant 測試。</p>
-              <div class="card-foot">
-                <div class="tags"><span>TypeScript</span><span>Solidity</span><span>World ID</span><span>x402</span></div>
-                <a class="text-link" href="https://github.com/ChiJiun/verified-human-attention-market" target="_blank" rel="noreferrer">repo →</a>
-              </div>
-            </article>
-
-            <article class="card reveal">
-              <div class="card-top">
-                <span class="badge">自動化</span>
-              </div>
-              <h3 class="card-title">Python 自動化作品集</h3>
-              <p class="card-sub">把每天、每月重複的手工作業交給程式</p>
-              <p>Excel 自動月報、網站資料爬蟲、LINE 預約機器人，三個都能直接下載執行。</p>
-              <p class="card-note">各附自動化測試與範例輸出。</p>
-              <div class="card-foot">
-                <div class="tags"><span>Python</span><span>LINE Bot</span><span>Excel</span></div>
-                <a class="text-link" href="https://github.com/ChiJiun/automation-portfolio" target="_blank" rel="noreferrer">repo →</a>
-              </div>
-            </article>
-
-            <article class="card reveal">
-              <div class="card-top">
-                <span class="badge">團隊專案</span>
-              </div>
-              <h3 class="card-title">NCU AI Guidance</h3>
-              <p class="card-sub">中央大學選課諮詢平台</p>
-              <p>以知識圖譜、多信號檢索與多代理人 RAG，服務高中生的科系探索與大學生的選課規劃。</p>
-              <p class="card-note">我負責部署（Firebase、Render）、Google 登入，以及登入使用者的對話紀錄（PostgreSQL）。</p>
-              <div class="card-foot">
-                <div class="tags"><span>Python</span><span>TypeScript</span><span>Firebase</span></div>
-                <a class="text-link" href="https://github.com/ChiJiun/NCU_AI_Guidance" target="_blank" rel="noreferrer">repo →</a>
-              </div>
-            </article>
-          </div>
-
-          <h3 class="sub-title">更多</h3>
-          <ul class="more">
-            <li><a href="https://github.com/ChiJiun/usdt-invoice-pulse" target="_blank" rel="noreferrer">usdt-invoice-pulse</a><span>USDT/TWD 手續費目標與電子發票每日儀表板，實際下單預設關閉</span></li>
-            <li><a href="https://github.com/ChiJiun/worldquant" target="_blank" rel="noreferrer">worldquant</a><span>WorldQuant BRAIN API 模擬器與一次只改一個變因的 alpha 研究迴圈</span></li>
-            <li><a href="https://github.com/ChiJiun/forecasting-fx-transformer" target="_blank" rel="noreferrer">forecasting-fx-transformer</a><span>Fork 學長的匯率預測專案，加入無資料洩漏的 rolling-origin 回測</span></li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="section alt" id="talks">
-        <div class="container">
-          <h2 class="section-title">報告與簡報</h2>
-          <div class="timeline">
-            <div class="timeline-item reveal">
-              <div class="timeline-header">
-                <div>
-                  <h3 class="timeline-title">衍生性商品專題 · 四份報告</h3>
-                  <h4 class="timeline-org">金融商品與選擇權實證文獻</h4>
-                </div>
-                <span class="pill">2026.10</span>
-              </div>
-              <ul class="timeline-desc">
-                <li>金融商品介紹：FCN 固定配息結構型商品</li>
-                <li>Cremers &amp; Weinbaum (2010)：買賣權平價偏離與股票報酬可預測性</li>
-                <li>Xing, Zhang &amp; Zhao (2010)：個股選擇權波動度偏斜與未來報酬</li>
-                <li>Bali &amp; Hovakimian (2009)：波動度價差與預期股票報酬</li>
-              </ul>
-            </div>
-            <div class="timeline-item reveal">
-              <div class="timeline-header">
-                <div>
-                  <h3 class="timeline-title">期貨交易的資金管理</h3>
-                  <h4 class="timeline-org">部位大小、停損與風險控制</h4>
-                </div>
-                <span class="pill">2026.09</span>
-              </div>
-            </div>
-            <div class="timeline-item reveal">
-              <div class="timeline-header">
-                <div>
-                  <h3 class="timeline-title">L2 Rollup 入門</h3>
-                  <h4 class="timeline-org">以太坊擴容方案</h4>
-                </div>
-                <span class="pill">2026.09</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="skills">
-        <div class="container">
-          <h2 class="section-title">技能</h2>
-          <div class="skills">
-            <div class="skill-group reveal">
-              <h3>程式語言</h3>
-              <div class="skill-tags"><span>Python</span><span>TypeScript</span><span>Java</span><span>Rust</span><span>Solidity</span></div>
-            </div>
-            <div class="skill-group reveal">
-              <h3>ML 與密碼學</h3>
-              <div class="skill-tags"><span>Federated Learning</span><span>Differential Privacy</span><span>Halo2</span><span>EZKL</span><span>LLM Agents</span></div>
-            </div>
-            <div class="skill-group reveal">
-              <h3>金融與量化</h3>
-              <div class="skill-tags"><span>回測與績效歸因</span><span>選擇權實證</span><span>結構型商品</span><span>期貨資金管理</span></div>
-            </div>
-            <div class="skill-group reveal">
-              <h3>平台與工具</h3>
-              <div class="skill-tags"><span>Cloudflare Workers</span><span>AWS</span><span>Firebase</span><span>PostgreSQL</span><span>GitHub Actions</span><span>Foundry</span></div>
-            </div>
-          </div>
-        </div>
+      <section class="section wrap" id="projects">
+        <div class="sh"><span class="no">03</span><h2>作品</h2></div>
+        <ul class="cards" id="cards"></ul>
+        <p class="more-title">MORE</p>
+        <ul class="more" id="more"></ul>
       </section>
     </main>
 
-    <footer class="footer">
-      <div class="container footer-inner">
-        <p>© 2026 Chi-Jiun Wong 翁祺鈞</p>
-        <div class="footer-links">
-          <a href="https://github.com/ChiJiun" target="_blank" rel="noreferrer">GitHub</a>
-          <a href="https://www.linkedin.com/in/chijiun-wong-471716336/" target="_blank" rel="noreferrer">LinkedIn</a>
-          <a href="https://linktr.ee/0311gino" target="_blank" rel="noreferrer">Linktree</a>
-        </div>
+    <footer class="footer wrap">© 2026 翁祺鈞 Chi-Jiun Wong</footer>
+
+    <div class="status" aria-hidden="true">
+      <span class="mode" id="st-mode">NORMAL</span>
+      <span class="file" id="st-file">about.md</span>
+      <span class="msg" id="st-msg"></span>
+      <span id="st-pos">0%</span>
+    </div>
+
+    <dialog id="pal" aria-label="指令面板">
+      <div>
+        <input id="q" type="text" placeholder="想去哪裡、想做什麼？也可以打 :theme、:e research" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="搜尋指令" />
+        <ul id="list" role="listbox"></ul>
+        <p class="foot">↑↓ 選擇 · Enter 執行 · Esc 關閉</p>
       </div>
-    </footer>
+    </dialog>
 
-    <script>
-      // Solid nav once the hero scrolls away; fade sections in as they enter the viewport.
-      const nav = document.getElementById('nav');
-      const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
-      onScroll();
-      window.addEventListener('scroll', onScroll, { passive: true });
-
-      const items = document.querySelectorAll('.reveal');
-      if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        document.documentElement.classList.add('js-reveal');
-        const io = new IntersectionObserver((entries) => {
-          for (const entry of entries) {
-            if (entry.isIntersecting) {
-              entry.target.classList.add('in');
-              io.unobserve(entry.target);
-            }
-          }
-        }, { rootMargin: '0px 0px -8% 0px' });
-        items.forEach((el) => io.observe(el));
-      }
-    </script>
+    <script type="module" src="main.js"></script>
   </body>
 </html>
