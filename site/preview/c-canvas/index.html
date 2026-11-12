@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>範本 C · 生成藝術背景</title>
+    <style>
+      :root {
+        --sans: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+        --mono: ui-monospace, "Cascadia Code", Consolas, "Noto Sans TC", "Microsoft JhengHei", monospace;
+      }
+      [data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #0b0b10; --panel: rgba(20, 20, 28, .72); --line: rgba(255, 255, 255, .12);
+        --fg: #ececf1; --dim: #9c9cab; --accent: #ff8a65; --ink: 236, 236, 241; --accent-rgb: 255, 138, 101;
+      }
+      [data-theme="light"] {
+        color-scheme: light;
+        --bg: #f5f2ec; --panel: rgba(255, 255, 255, .74); --line: rgba(20, 20, 30, .14);
+        --fg: #1c1b19; --dim: #68655d; --accent: #c93f24; --ink: 28, 27, 25; --accent-rgb: 201, 63, 36;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.75 var(--sans); overflow-x: hidden; }
+      a { color: inherit; }
+      button { font: inherit; color: inherit; cursor: pointer; }
+      #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+      .progress { display: none; }
+      nav, main, footer { position: relative; z-index: 1; }
+
+      nav { position: fixed; inset: 0 0 auto 0; z-index: 5; display: flex; align-items: center; gap: 6px; padding: 12px clamp(16px, 4vw, 40px); background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); font-size: 15px; }
+      nav .me { font-weight: 700; margin-right: auto; text-decoration: none; }
+      nav a.sec { padding: 6px 10px; border-radius: 8px; text-decoration: none; color: var(--dim); }
+      nav a.sec:hover { color: var(--fg); background: var(--line); }
+      nav button { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); font: 13px var(--mono); white-space: nowrap; }
+      nav button:hover { border-color: var(--accent); }
+      nav .back { margin-left: 6px; color: var(--dim); text-decoration: none; font-size: 14px; white-space: nowrap; }
+      nav .back:hover { color: var(--accent); }
+
+      main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 40px); }
+      .hero { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: 120px 0 60px; }
+      .tagline { font: 14px var(--mono); letter-spacing: .18em; color: var(--accent); }
+      h1 { margin: 18px 0 0; font-size: clamp(46px, 11.5vw, 156px); line-height: .98; letter-spacing: -.035em; font-weight: 800; }
+      h1 .w { display: block; white-space: nowrap; }
+      h1 .ch { display: inline-block; transform: translateY(calc(var(--k, 0) * -.14em)); color: color-mix(in srgb, var(--accent) calc(var(--k, 0) * 100%), var(--fg)); transition: transform .35s cubic-bezier(.2, .8, .2, 1), color .35s; }
+      .zh { margin: 22px 0 0; font-size: clamp(22px, 3vw, 32px); font-weight: 600; }
+      .intro { max-width: 40em; margin: 18px 0 0; color: var(--dim); }
+      .motto { max-width: 40em; margin: 22px 0 0; padding-left: 16px; border-left: 3px solid var(--accent); font-style: italic; }
+      .links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+      .btn { padding: 9px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); text-decoration: none; font-size: 15px; transition: border-color .2s, transform .2s; }
+      .btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+      .btn.main { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 700; }
+      .tip { margin-top: 34px; font: 13px var(--mono); color: var(--dim); }
+      kbd { padding: 1px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); font: inherit; color: var(--fg); }
+
+      section { padding: 80px 0; scroll-margin-top: 40px; }
+      .sh { display: flex; align-items: baseline; gap: 16px; margin: 0 0 30px; }
+      .sh .no { font: 14px var(--mono); color: var(--accent); }
+      h2 { margin: 0; font-size: clamp(30px, 4.4vw, 46px); letter-spacing: -.02em; }
+      .panel { padding: 28px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); backdrop-filter: blur(10px); }
+      .panel h3 { margin: 0; font-size: 24px; }
+      .org { margin: 4px 0 14px; font: 13.5px var(--mono); color: var(--dim); }
+      .panel ul { margin: 0; padding-left: 20px; }
+      .panel li + li { margin-top: 6px; }
+      .more { display: inline-block; margin-top: 16px; color: var(--accent); text-underline-offset: 5px; }
+
+      .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 18px; margin: 0; padding: 0; list-style: none; }
+      .cards li { display: flex; }
+      .card { position: relative; display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); backdrop-filter: blur(10px); text-decoration: none; transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .3s ease-out, border-color .3s; will-change: transform; }
+      .card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%), rgba(var(--accent-rgb), .2), transparent 62%); opacity: 0; transition: opacity .3s; pointer-events: none; }
+      .card:hover, .card:focus-visible { border-color: rgba(var(--accent-rgb), .7); outline: none; }
+      .card:hover::before, .card:focus-visible::before { opacity: 1; }
+      .card .top { display: flex; justify-content: space-between; gap: 10px; font: 12.5px var(--mono); color: var(--accent); }
+      .card .top span + span { color: var(--dim); }
+      .card h3 { margin: 0; font-size: 20px; line-height: 1.4; }
+      .card .sub { font-size: 14px; color: var(--dim); }
+      .card p { margin: 0; font-size: 15.5px; }
+      .card .note { font-size: 14px; color: var(--dim); }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 10px; }
+      .chip { padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; font: 12.5px var(--mono); }
+
+      .talk { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 20px; padding: 22px 0; border-top: 1px solid var(--line); }
+      .talk:last-child { border-bottom: 1px solid var(--line); }
+      .talk .date { font: 14px var(--mono); color: var(--accent); padding-top: 4px; }
+      .talk h3 { margin: 0; font-size: 21px; }
+      .talk .sub { color: var(--dim); font-size: 15px; }
+      .talk ul { margin: 10px 0 0; padding-left: 20px; font-size: 15.5px; }
+
+      .groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 18px; }
+      .group h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 16px; }
+      .group h3 i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+      .group .chips { margin: 0; padding: 0; }
+      .group .chip { font-size: 13.5px; padding: 4px 12px; }
+
+      footer { max-width: 1120px; margin: 0 auto; padding: 40px clamp(18px, 4vw, 40px) 60px; color: var(--dim); font-size: 14px; }
+
+      dialog { width: min(600px, calc(100vw - 32px)); margin: 14vh auto auto; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); color: var(--fg); box-shadow: 0 30px 90px rgba(0, 0, 0, .5); overflow: hidden; }
+      dialog::backdrop { background: rgba(0, 0, 0, .45); backdrop-filter: blur(3px); }
+      dialog input { width: 100%; padding: 18px 20px; border: 0; border-bottom: 1px solid var(--line); outline: 0; background: none; color: inherit; font: 17px var(--sans); }
+      dialog ul { max-height: 46vh; margin: 0; padding: 8px; list-style: none; overflow: auto; }
+      dialog li { display: flex; justify-content: space-between; gap: 14px; padding: 9px 12px; border-radius: 10px; cursor: pointer; }
+      dialog li[aria-selected="true"] { background: rgba(var(--accent-rgb), .18); }
+      dialog li span + span { flex-shrink: 0; font: 12.5px var(--mono); color: var(--dim); }
+      dialog .none { padding: 18px 20px; color: var(--dim); }
+      dialog .foot { margin: 0; padding: 10px 20px; border-top: 1px solid var(--line); font: 12.5px var(--mono); color: var(--dim); }
+
+      ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
+      @media (prefers-reduced-motion: no-preference) {
+        @supports (animation-timeline: view()) {
+          .rise { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% cover 28%; }
+          .progress { display: block; position: fixed; inset: 0 0 auto 0; z-index: 6; height: 3px; background: var(--accent); transform-origin: 0 50%; animation: grow linear both; animation-timeline: scroll(root); }
+        }
+      }
+      @keyframes rise { from { opacity: 0; transform: translateY(46px) scale(.97); } to { opacity: 1; transform: none; } }
+      @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        h1 .ch, .card, .btn { transition: none; }
+      }
+      @media (max-width: 760px) {
+        nav a.sec { display: none; }
+        .talk { grid-template-columns: 1fr; gap: 4px; }
+        section { padding: 56px 0; }
+        .panel, .card { padding: 20px; }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="bg" aria-hidden="true"></canvas>
+    <div class="progress" aria-hidden="true"></div>
+    <nav>
+      <a class="me" href="#top">翁祺鈞</a>
+      <a class="sec" href="#research">研究</a>
+      <a class="sec" href="#projects">作品</a>
+      <a class="sec" href="#talks">報告</a>
+      <a class="sec" href="#skills">技能</a>
+      <button id="open-pal" type="button" aria-label="開啟指令面板">Ctrl K</button>
+      <button id="theme" type="button" aria-label="切換深色或淺色">◐</button>
+      <a class="back" href="../">← 範本列表</a>
+    </nav>
+
+    <main id="top">
+      <header class="hero" id="hero">
+        <span class="tagline" id="tagline"></span>
+        <h1 id="name"></h1>
+        <p class="zh" id="zh"></p>
+        <p class="intro" id="intro"></p>
+        <p class="motto" id="motto"></p>
+        <div class="links" id="links"></div>
+        <p class="tip" id="tip">移動滑鼠攪動背景 · 按 <kbd id="kbd">Ctrl K</kbd> 或 <kbd>/</kbd> 開指令面板</p>
+      </header>
+
+      <section id="research">
+        <div class="sh"><span class="no">01</span><h2>研究</h2></div>
+        <div class="panel rise" id="research-body"></div>
+      </section>
+      <section id="projects">
+        <div class="sh"><span class="no">02</span><h2>作品</h2></div>
+        <ul class="cards" id="cards"></ul>
+      </section>
+      <section id="talks">
+        <div class="sh"><span class="no">03</span><h2>報告與簡報</h2></div>
+        <div id="talk-list"></div>
+      </section>
+      <section id="skills">
+        <div class="sh"><span class="no">04</span><h2>技能</h2></div>
+        <div class="groups" id="groups"></div>
+      </section>
+    </main>
+    <footer>© 2026 翁祺鈞 Chi-Jiun Wong</footer>
+
+    <dialog id="pal" aria-label="指令面板">
+      <div id="pal-in">
+        <input id="q" type="text" placeholder="想去哪裡、想做什麼？" autocomplete="off" spellcheck="false" aria-label="搜尋指令" />
+        <ul id="list" role="listbox"></ul>
+        <p class="foot">↑↓ 選擇 · Enter 執行 · Esc 關閉</p>
+      </div>
+    </dialog>
+
+    <script type="module">
+      import { me, research, projects, talks, skills, cats } from '../data.js';
+
+      const $ = (id) => document.getElementById(id);
+      const el = (tag, cls, text) => {
+        const node = document.createElement(tag);
+        if (cls) node.className = cls;
+        if (text != null) node.textContent = text;
+        return node;
+      };
+      const root = document.documentElement;
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+      // ---------- content ----------
+      $('tagline').textContent = me.tagline;
+      $('zh').textContent = me.zh;
+      $('intro').textContent = me.intro;
+      $('motto').textContent = me.motto;
+      const h1 = $('name');
+      h1.setAttribute('aria-label', me.en);
+      const letters = [];
+      me.en.split(' ').forEach((word) => {
+        const w = el('span', 'w');
+        w.setAttribute('aria-hidden', 'true');
+        [...word].forEach((c) => { const s = el('span', 'ch', c); letters.push(s); w.append(s); });
+        h1.append(w);
+      });
+      const first = el('a', 'btn main', '看作品');
+      first.href = '#projects';
+      $('links').append(first, ...me.links.map((l) => {
+        const a = el('a', 'btn', l.label);
+        a.href = l.href; a.target = '_blank'; a.rel = 'noreferrer';
+        return a;
+      }));
+
+      const rb = $('research-body');
+      const ul = el('ul');
+      research.points.forEach((p) => ul.append(el('li', '', p)));
+      const more = el('a', 'more', `${research.link.label} →`);
+      more.href = research.link.href; more.target = '_blank'; more.rel = 'noreferrer';
+      rb.append(el('h3', '', research.title), el('p', 'org', research.org), ul, more);
+
+      projects.forEach((p) => {
+        const li = el('li', 'rise');
+        const a = el('a', 'card');
+        a.href = p.href; a.target = '_blank'; a.rel = 'noreferrer';
+        const top = el('div', 'top');
+        top.append(el('span', '', p.tag), el('span', '', p.year));
+        const chips = el('div', 'chips');
+        p.stack.forEach((s) => chips.append(el('span', 'chip', s)));
+        a.append(top, el('h3', '', p.title), el('span', 'sub', p.sub), el('p', '', p.desc), el('p', 'note', p.note), chips);
+        li.append(a);
+        $('cards').append(li);
+      });
+
+      talks.forEach((t) => {
+        const row = el('div', 'talk rise');
+        const body = el('div');
+        body.append(el('h3', '', t.title), el('div', 'sub', t.sub));
+        if (t.items.length) {
+          const list = el('ul');
+          t.items.forEach((i) => list.append(el('li', '', i)));
+          body.append(list);
+        }
+        row.append(el('span', 'date', t.date), body);
+        $('talk-list').append(row);
+      });
+
+      Object.entries(cats).forEach(([id, cat]) => {
+        const g = el('div', 'group panel rise');
+        g.style.setProperty('--c', cat.color);
+        const h = el('h3');
+        h.append(el('i'), cat.label);
+        const chips = el('div', 'chips');
+        Object.values(skills).filter((s) => s.cat === id).forEach((s) => chips.append(el('span', 'chip', s.name)));
+        g.append(h, chips);
+        $('groups').append(g);
+      });
+
+      // ---------- flow-field background ----------
+      const cv = $('bg');
+      const ctx = cv.getContext('2d');
+      const ptr = { x: -9999, y: -9999, boost: 0 };
+      const R = 230;
+      let W = 0, H = 0, parts = [], ink = '', accent = '', raf = 0, t = Math.random() * 100;
+
+      const readColors = () => {
+        const cs = getComputedStyle(root);
+        ink = cs.getPropertyValue('--ink').trim();
+        accent = cs.getPropertyValue('--accent-rgb').trim();
+      };
+      const spawn = () => ({ x: Math.random() * W, y: Math.random() * H, life: 60 + Math.random() * 260 });
+      function resize() {
+        const dpr = Math.min(devicePixelRatio || 1, 2);
+        W = innerWidth; H = innerHeight;
+        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        parts = Array.from({ length: Math.round(Math.min(900, (W * H) / 2200)) }, spawn);
+        if (reduced) still();
+      }
+      const angle = (x, y) =>
+        (Math.sin(x * 0.0023 + t * 0.6) + Math.cos(y * 0.0029 - t * 0.4) + Math.sin((x + y) * 0.0011 + t * 0.3)) * Math.PI * 0.66;
+
+      function step(fade) {
+        t += 0.004;
+        if (fade) {
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.fillStyle = 'rgba(0, 0, 0, .07)';
+          ctx.fillRect(0, 0, W, H);
+          ctx.globalCompositeOperation = 'source-over';
+        }
+        const far = new Path2D(), near = new Path2D();
+        const r = R * (1 + ptr.boost), r2 = r * r;
+        for (const p of parts) {
+          const a = angle(p.x, p.y);
+          let vx = Math.cos(a) * 1.4, vy = Math.sin(a) * 1.4, hot = false;
+          const dx = p.x - ptr.x, dy = p.y - ptr.y, d2 = dx * dx + dy * dy;
+          if (d2 < r2) {
+            const d = Math.sqrt(d2) || 1, f = 1 - d / r, push = ptr.boost * 4;
+            vx += (-dy / d) * f * 3.4 + (dx / d) * f * (push - 0.5);
+            vy += (dx / d) * f * 3.4 + (dy / d) * f * (push - 0.5);
+            hot = true;
+          }
+          const nx = p.x + vx, ny = p.y + vy;
+          const path = hot ? near : far;
+          path.moveTo(p.x, p.y); path.lineTo(nx, ny);
+          p.x = nx; p.y = ny;
+          if (--p.life < 0 || nx < 0 || nx > W || ny < 0 || ny > H) Object.assign(p, spawn());
+        }
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = `rgba(${ink}, ${fade ? 0.4 : 0.08})`;
+        ctx.stroke(far);
+        ctx.strokeStyle = `rgba(${accent}, ${fade ? 0.85 : 0.08})`;
+        ctx.stroke(near);
+        ptr.boost *= 0.94;
+      }
+      function still() {
+        ctx.clearRect(0, 0, W, H);
+        for (let i = 0; i < 160; i++) step(false);
+      }
+      function loop() { step(true); raf = requestAnimationFrame(loop); }
+      const start = () => { if (!reduced && !raf && !document.hidden) raf = requestAnimationFrame(loop); };
+      const stop = () => { cancelAnimationFrame(raf); raf = 0; };
+
+      readColors();
+      resize();
+      start();
+      addEventListener('resize', resize);
+      document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+      addEventListener('pointermove', (e) => { ptr.x = e.clientX; ptr.y = e.clientY; });
+      addEventListener('pointerdown', (e) => { ptr.x = e.clientX; ptr.y = e.clientY; ptr.boost = 1; });
+      document.addEventListener('pointerleave', () => { ptr.x = ptr.y = -9999; });
+
+      // ---------- hero letters lean toward the pointer ----------
+      if (finePointer && !reduced) {
+        const hero = $('hero');
+        hero.addEventListener('pointermove', (e) => {
+          for (const s of letters) {
+            const b = s.getBoundingClientRect();
+            const d = Math.hypot(e.clientX - (b.left + b.width / 2), e.clientY - (b.top + b.height / 2));
+            s.style.setProperty('--k', Math.max(0, 1 - d / 260).toFixed(3));
+          }
+        });
+        hero.addEventListener('pointerleave', () => letters.forEach((s) => s.style.setProperty('--k', 0)));
+
+        // ---------- cards tilt + glare ----------
+        document.querySelectorAll('.card').forEach((card) => {
+          card.addEventListener('pointermove', (e) => {
+            const b = card.getBoundingClientRect();
+            const px = (e.clientX - b.left) / b.width, py = (e.clientY - b.top) / b.height;
+            card.style.setProperty('--rx', `${((0.5 - py) * 9).toFixed(2)}deg`);
+            card.style.setProperty('--ry', `${((px - 0.5) * 11).toFixed(2)}deg`);
+            card.style.setProperty('--mx', `${(px * 100).toFixed(1)}%`);
+            card.style.setProperty('--my', `${(py * 100).toFixed(1)}%`);
+          });
+          card.addEventListener('pointerleave', () => {
+            card.style.setProperty('--rx', '0deg');
+            card.style.setProperty('--ry', '0deg');
+          });
+        });
+      }
+
+      // ---------- theme: circular reveal via View Transitions ----------
+      function toggleTheme(e) {
+        const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        const apply = () => {
+          root.dataset.theme = next;
+          readColors();
+          if (reduced) still();
+        };
+        if (!document.startViewTransition || reduced) return apply();
+        const x = e?.clientX || innerWidth - 60, y = e?.clientY || 30;
+        const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+        document.startViewTransition(apply).ready.then(() => {
+          root.animate(
+            { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] },
+            { duration: 560, easing: 'cubic-bezier(.4, 0, .2, 1)', pseudoElement: '::view-transition-new(root)' },
+          );
+        }).catch(() => {});
+      }
+      $('theme').addEventListener('click', toggleTheme);
+
+      // ---------- command palette ----------
+      const pal = $('pal'), q = $('q'), list = $('list');
+      const go = (id) => () => $(id).scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
+      const visit = (href) => () => window.open(href, '_blank', 'noopener');
+      const cmds = [
+        { label: '回到頁首', hint: '區塊', run: go('top') },
+        { label: '研究', hint: '區塊', run: go('research') },
+        { label: '作品', hint: '區塊', run: go('projects') },
+        { label: '報告與簡報', hint: '區塊', run: go('talks') },
+        { label: '技能', hint: '區塊', run: go('skills') },
+        { label: '切換深色／淺色', hint: '外觀 theme', run: () => toggleTheme() },
+        ...me.links.map((l) => ({ label: `開啟 ${l.label}`, hint: '連結', run: visit(l.href) })),
+        ...projects.map((p) => ({ label: p.title, hint: `repo · ${p.repo}`, run: visit(p.href) })),
+        { label: '回範本列表', hint: '預覽', run: () => { location.href = '../'; } },
+      ];
+      let shown = [], sel = 0;
+      function draw() {
+        const needle = q.value.trim().toLowerCase();
+        shown = cmds.filter((c) => !needle || `${c.label} ${c.hint}`.toLowerCase().includes(needle));
+        sel = Math.min(sel, Math.max(0, shown.length - 1));
+        if (!shown.length) return list.replaceChildren(el('li', 'none', '找不到符合的指令'));
+        list.replaceChildren(...shown.map((c, i) => {
+          const li = el('li');
+          li.setAttribute('role', 'option');
+          li.setAttribute('aria-selected', String(i === sel));
+          li.append(el('span', '', c.label), el('span', '', c.hint));
+          li.addEventListener('click', () => exec(i));
+          li.addEventListener('pointermove', () => { if (sel !== i) { sel = i; mark(); } });
+          return li;
+        }));
+      }
+      function mark() {
+        [...list.children].forEach((li, i) => li.setAttribute('aria-selected', String(i === sel)));
+        list.children[sel]?.scrollIntoView({ block: 'nearest' });
+      }
+      function exec(i) {
+        const c = shown[i];
+        if (!c) return;
+        pal.close();
+        c.run();
+      }
+      function openPal() {
+        if (pal.open) return pal.close();
+        q.value = ''; sel = 0;
+        pal.showModal();
+        draw();
+        q.focus();
+      }
+      q.addEventListener('input', () => { sel = 0; draw(); });
+      q.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') { sel = (sel + 1) % Math.max(1, shown.length); mark(); e.preventDefault(); }
+        else if (e.key === 'ArrowUp') { sel = (sel - 1 + shown.length) % Math.max(1, shown.length); mark(); e.preventDefault(); }
+        else if (e.key === 'Enter') { exec(sel); e.preventDefault(); }
+      });
+      pal.addEventListener('click', (e) => { if (e.target === pal) pal.close(); });
+      $('open-pal').addEventListener('click', openPal);
+      addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPal(); }
+        else if (e.key === '/' && !pal.open && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); openPal(); }
+      });
+      if (!finePointer) {
+        $('tip').textContent = '點一下畫面攪動背景 · 右上角的按鈕可以開指令面板';
+        $('open-pal').textContent = '指令';
+      } else if (/Mac/.test(navigator.platform)) {
+        $('open-pal').textContent = '⌘ K';
+        $('kbd').textContent = '⌘ K';
+      }
+    </script>
+  </body>
+</html>
