@@ -15,6 +15,10 @@
   - 「經歷」是一個編輯器視窗：點一下之後用 `j`/`k` 移動、`h`/`l` 切換檔案、Enter 開連結。
   - `:` 或 `/` 開指令列（`:theme`、`:e awards`、`:sound`、`:help`），Ctrl K 搜尋。
 - 聯絡表單：在 `data.js` 的 `contact` 填入 Web3Forms 的 access key（或 email）後才會顯示。
+- `site/blog/`：文章區，一樣是純靜態、沒有 build 步驟。
+  - `index.html`：文章列表。新增文章時，在 `post-list` 裡複製一個 `<li class="post-item">`。
+  - `oracle-free-arm-vm.html`：文章本體，以它為範本複製即可；文章裡不要放 OCID、IP、信箱、金鑰。
+  - `blog.css`：文章專用樣式，配色與 nav、footer 沿用 `site/styles.css`。
 - `site/404.html`：找不到的網址導回首頁。
 - `.github/workflows/deploy.yml`：push 到 `main` 時把 `site/` 部署到 GitHub Pages。
 

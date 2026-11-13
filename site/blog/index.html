@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>文章 · 翁祺鈞 Chi-Jiun Wong</title>
+    <meta name="description" content="翁祺鈞的技術筆記：把做過的事情寫成可以照著做的流程，連同踩過的坑一起記下來。" />
+    <meta property="og:title" content="文章 · 翁祺鈞 Chi-Jiun Wong" />
+    <meta property="og:description" content="把做過的事情寫成可以照著做的流程，連同踩過的坑一起記下來。" />
+    <meta property="og:url" content="https://chijiun.github.io/blog/" />
+    <meta name="theme-color" content="#0a0f22" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0f22'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='16' font-weight='700' fill='%237dd3fc'%3ECJ%3C/text%3E%3C/svg%3E" />
+    <script>
+      try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+    </script>
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="blog.css" />
+  </head>
+  <body class="blog">
+    <a class="skip" href="#main">跳到主要內容</a>
+
+    <nav class="nav" aria-label="主選單">
+      <a class="brand" href="../">Chi-Jiun<span>.</span></a>
+      <a class="sec" href="../#research">研究</a>
+      <a class="sec" href="../#experience">經歷</a>
+      <a class="sec" href="../#projects">作品</a>
+      <a class="sec cur" href="./" aria-current="page">文章</a>
+      <button id="theme" type="button" aria-label="切換深色或淺色">◐</button>
+    </nav>
+
+    <main id="main" class="blog-wrap">
+      <header class="blog-head">
+        <h1>文章</h1>
+        <p>把做過的事情寫成可以照著做的流程，連同踩過的坑一起記下來。</p>
+      </header>
+
+      <ul class="post-list">
+        <li class="post-item">
+          <a href="oracle-free-arm-vm.html">
+            <h2>搶 Oracle Cloud 免費 ARM VM：從零到 SSH 登入的完整流程</h2>
+            <p>用 OCI CLI 和一支重試腳本，在東京 region 搶到 2 OCPU / 12 GB 的 Always Free ARM 主機，附上我在 Windows 上踩到的路徑長度與跳脫字元問題。</p>
+            <div class="post-meta">2026-11-13 · 約 15 分鐘讀完</div>
+            <ul class="tags"><li>Oracle Cloud</li><li>OCI CLI</li><li>ARM</li><li>Always Free</li></ul>
+          </a>
+        </li>
+      </ul>
+    </main>
+
+    <footer class="footer wrap">© 2026 翁祺鈞 Chi-Jiun Wong</footer>
+
+    <script>
+      document.getElementById('theme').addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('theme', next); } catch {}
+      });
+    </script>
+  </body>
+</html>

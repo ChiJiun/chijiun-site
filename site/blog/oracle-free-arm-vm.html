@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>搶 Oracle Cloud 免費 ARM VM：從零到 SSH 登入的完整流程 · 翁祺鈞</title>
+    <meta name="description" content="用 OCI CLI 和一支重試腳本，在東京 region 搶到 2 OCPU / 12 GB 的 Always Free ARM 主機，附上 Windows 上踩到的路徑長度與跳脫字元問題。" />
+    <meta property="og:title" content="搶 Oracle Cloud 免費 ARM VM：從零到 SSH 登入的完整流程" />
+    <meta property="og:description" content="OCI CLI、建網路、重試腳本、搶到之後的檢查，以及踩過的坑。" />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://chijiun.github.io/blog/oracle-free-arm-vm.html" />
+    <meta name="theme-color" content="#0a0f22" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0f22'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='16' font-weight='700' fill='%237dd3fc'%3ECJ%3C/text%3E%3C/svg%3E" />
+    <script>
+      try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+    </script>
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="blog.css" />
+  </head>
+  <body class="blog">
+    <a class="skip" href="#main">跳到主要內容</a>
+
+    <nav class="nav" aria-label="主選單">
+      <a class="brand" href="../">Chi-Jiun<span>.</span></a>
+      <a class="sec" href="../#research">研究</a>
+      <a class="sec" href="../#experience">經歷</a>
+      <a class="sec" href="../#projects">作品</a>
+      <a class="sec cur" href="./" aria-current="page">文章</a>
+      <button id="theme" type="button" aria-label="切換深色或淺色">◐</button>
+    </nav>
+
+    <main id="main" class="blog-wrap">
+      <a class="back" href="./">← 全部文章</a>
+
+      <article class="post">
+        <header>
+          <h1>搶 Oracle Cloud 免費 ARM VM：從零到 SSH 登入的完整流程</h1>
+          <div class="post-meta">2026-11-13 · 約 15 分鐘讀完</div>
+          <ul class="tags"><li>Oracle Cloud</li><li>OCI CLI</li><li>ARM</li><li>Always Free</li></ul>
+          <p class="lead">Oracle Cloud 的 Always Free 有一台 ARM 主機（2 OCPU、12 GB 記憶體），但東京 region 常常回「沒容量」。我用 OCI CLI 和一支每分鐘重試的腳本去搶，第 24 次嘗試成功，前後約 42 分鐘。這篇把流程、指令、完整腳本，和我在 Windows 上踩到的坑一起記下來。</p>
+        </header>
+
+        <div class="callout warn">
+          <p><strong>先講限制。</strong>搶得到有運氣成分，沒有人能保證多久。文中所有 OCID、IP、信箱、金鑰都用 <code>&lt;佔位符&gt;</code> 取代；免費額度以 Oracle 官方文件為準，我只讀過其中一頁，沒有逐項查證計費細節。</p>
+        </div>
+
+        <h2>結果先看</h2>
+        <ul class="timeline">
+          <li><time>10:51</time>腳本開始跑，第 1 次嘗試：<code>Out of host capacity</code></li>
+          <li><time>11:10 左右</time>第 12 次嘗試，仍然沒容量；期間我按了升級 Pay As You Go</li>
+          <li><time>11:33</time>第 24 次嘗試成功，一次就建出主機，沒有重複開機</li>
+        </ul>
+        <table>
+          <thead><tr><th>項目</th><th>內容</th></tr></thead>
+          <tbody>
+            <tr><td>Region</td><td>東京（<code>ap-tokyo-1</code>），只有一個 Availability Domain</td></tr>
+            <tr><td>Shape</td><td><code>VM.Standard.A1.Flex</code>，2 OCPU / 12 GB</td></tr>
+            <tr><td>系統</td><td>Ubuntu 24.04 aarch64，開機磁碟約 48 GB 可用</td></tr>
+            <tr><td>搶到的方式</td><td>重試腳本，每輪約 80 秒（請求約 20 秒 + 等待 60 秒）</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <p>升級 Pay As You Go 後不久就搶到，但我沒有確認升級是否已經生效，所以<strong>不能說兩者有關</strong>。網路上有人說要先升級才搶得到，Oracle 並沒有這樣保證。</p>
+        </div>
+
+        <h2>1. 先搞清楚「免費」到底包含什麼</h2>
+        <p>我讀的是 Oracle 官方的 <a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Always Free Resources</a> 頁面，整理出和這篇有關的部分：</p>
+        <table>
+          <thead><tr><th>資源</th><th>額度</th></tr></thead>
+          <tbody>
+            <tr><td>A1 ARM 主機</td><td>合計 2 OCPU / 12 GB，可以用在一台，或最多切成兩台</td></tr>
+            <tr><td>AMD 小主機</td><td><code>VM.Standard.E2.1.Micro</code> 最多 2 台，每台 1 GB 記憶體</td></tr>
+            <tr><td>磁碟</td><td>開機磁碟與區塊磁碟合計 200 GB</td></tr>
+            <tr><td>出站流量</td><td>每月 10 TB</td></tr>
+            <tr><td>位置</td><td>主機與磁碟只能建在 home region</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>升級 Pay As You Go 之後，Always Free 資源仍然免費，只有超出額度的部分才計費。</li>
+          <li>7 天內 CPU、網路、記憶體（記憶體只看 A1）的第 95 百分位都低於 20%，主機可能被當成閒置回收。</li>
+          <li>Reserved Public IP 是否免費，文件沒有載明，所以我沒建。</li>
+          <li>免費規格可選的映像檔只有 Linux，沒有 Windows。</li>
+        </ul>
+        <div class="callout warn">
+          <p>我的帳號用 CLI 查到的 A1 配額上限遠大於免費額度（region 16 核 / 96 GB）。那是<strong>配額上限，不是免費額度</strong>，超過 2 OCPU / 12 GB 的部分可能計費，所以腳本預設就卡在 2 / 12。</p>
+        </div>
+
+        <h2>2. 準備 OCI CLI 與 API 金鑰</h2>
+        <h3>2.1 建立 API 金鑰</h3>
+        <ol>
+          <li>登入 Console，右上角頭像 → My profile → API keys → Add API key。</li>
+          <li>選 Generate API key pair，下載私鑰，再按 Add。</li>
+          <li>畫面會顯示一段設定檔內容，裡面有 <code>user</code>、<code>fingerprint</code>、<code>tenancy</code>、<code>region</code>，先留著。</li>
+          <li>把私鑰放到 <code>~/.oci/oci_api_key.pem</code>，並限縮權限（只有自己可讀寫）。</li>
+        </ol>
+        <p>Console 提供的 API 公鑰（<code>-----BEGIN PUBLIC KEY-----</code>）<strong>不能</strong>當作 SSH 公鑰，兩者是不同用途，這是常見的踩坑。</p>
+
+        <h3>2.2 建立設定檔</h3>
+        <p>把剛才的內容存成 <code>~/.oci/config</code>，並把 <code>key_file</code> 改成私鑰的實際路徑：</p>
+<pre><code>[DEFAULT]
+user=&lt;USER_OCID&gt;
+fingerprint=&lt;API_KEY_FINGERPRINT&gt;
+tenancy=&lt;TENANCY_OCID&gt;
+region=ap-tokyo-1
+key_file=&lt;私鑰的完整路徑&gt;</code></pre>
+        <p>Always Free 只能開在 home region，所以 <code>region</code> 要填你註冊時選的那個。</p>
+
+        <h3>2.3 安裝 OCI CLI（Windows 要注意路徑長度）</h3>
+        <p>建議裝在獨立的 Python 虛擬環境裡，而且<strong>路徑要很短</strong>，原因在後面「踩坑」一節。我最後用的是：</p>
+<pre><code>py -3 -m venv C:\o
+C:\o\Scripts\python.exe -m pip install oci-cli
+C:\o\Scripts\oci.exe --version</code></pre>
+        <p>驗證金鑰是否正確（唯讀指令）：</p>
+<pre><code>oci iam region-subscription list --tenancy-id &lt;TENANCY_OCID&gt; --output table</code></pre>
+        <p>看到你的 home region 狀態是 <code>READY</code>，代表金鑰和 fingerprint 都正確。</p>
+
+        <h3>2.4 查 A1 配額</h3>
+<pre><code>oci limits value list --compartment-id &lt;TENANCY_OCID&gt; --service-name compute --all \
+  --query "data[?contains(name,'standard-a1')]"</code></pre>
+        <p>如果之後腳本一直回 <code>LimitExceeded</code>，通常是要求的規格超過配額，不是沒容量。</p>
+
+        <h2>3. 建網路</h2>
+        <p>主機需要 VCN、Internet Gateway、路由和公開子網路。下面是 PowerShell 版本，全部建在 root compartment；教學作者說這些網路資源本身不收費。</p>
+<pre><code>$T = "&lt;TENANCY_OCID&gt;"
+
+$vcn = oci network vcn create --compartment-id $T --cidr-block 10.0.0.0/16 `
+  --display-name a1-vcn --wait-for-state AVAILABLE --query "data.id" --raw-output
+
+$igw = oci network internet-gateway create --compartment-id $T --vcn-id $vcn `
+  --is-enabled true --display-name a1-igw --wait-for-state AVAILABLE `
+  --query "data.id" --raw-output
+
+# 預設路由表加一條 0.0.0.0/0 指向 Internet Gateway
+$rt = oci network vcn get --vcn-id $vcn --query "data.\`"default-route-table-id\`"" --raw-output
+'[{"destination":"0.0.0.0/0","destinationType":"CIDR_BLOCK","networkEntityId":"' + $igw + '"}]' |
+  Set-Content -Encoding ascii routes.json
+oci network route-table update --rt-id $rt --route-rules "file://C:/路徑/routes.json" --force
+
+# 公開子網路
+$sub = oci network subnet create --compartment-id $T --vcn-id $vcn --cidr-block 10.0.0.0/24 `
+  --display-name a1-public --wait-for-state AVAILABLE --query "data.id" --raw-output</code></pre>
+        <p>預設的安全清單（Security List）本來就放行 TCP 22，我用下面的指令確認，沒有改它：</p>
+<pre><code>$sl = oci network vcn get --vcn-id $vcn --query "data.\`"default-security-list-id\`"" --raw-output
+oci network security-list get --security-list-id $sl --query "data.\`"ingress-security-rules\`""</code></pre>
+        <div class="callout">
+          <p>預設是對 <code>0.0.0.0/0</code> 開放 SSH。搶到之後建議把來源限縮成自己的 IP，並考慮停用密碼登入。</p>
+        </div>
+
+        <h2>4. 查腳本需要的三個值</h2>
+<pre><code># Ubuntu 24.04 ARM 映像檔
+oci compute image list --compartment-id $T --operating-system "Canonical Ubuntu" `
+  --operating-system-version "24.04" --shape VM.Standard.A1.Flex `
+  --sort-by TIMECREATED --sort-order DESC --limit 1 --query "data[0].id" --raw-output
+
+# Availability Domain 名稱
+oci iam availability-domain list --compartment-id $T --query "data[].name"</code></pre>
+        <p>子網路 OCID 就是上一節的 <code>$sub</code>。另外準備一把 SSH 金鑰，公鑰存成 <code>ssh.pub</code>，之後登入就用對應的私鑰。</p>
+
+        <h2>5. 搶機腳本</h2>
+        <p>邏輯很單純：呼叫「建立主機」API，失敗就看錯誤類型。沒容量、被限流、逾時這類錯誤等一下再試；<code>LimitExceeded</code> 或其他無法重試的錯誤就停止。</p>
+        <ul>
+          <li>關掉 CLI 內建重試（<code>OCI_CLI_MAX_RETRIES=0</code>），並固定 60 秒才打一次，避免和腳本迴圈疊加，吃到 429。</li>
+          <li>每次嘗試前先查有沒有同名主機。連線逾時但其實已建立的情況，就不會重複開機。</li>
+          <li>預設 2 OCPU / 12 GB、50 GB 開機磁碟，這是免費範圍。</li>
+        </ul>
+<pre><code>#!/usr/bin/env bash
+set -u
+export OCI_CLI_MAX_RETRIES=0
+
+WORKDIR="${WORKDIR:-$HOME/oci-grab}"
+OCPUS="${OCPUS:-2}"        # 免費額度以 2 OCPU / 12 GB 為準
+MEM="${MEM:-12}"
+DELAY="${DELAY:-60}"       # 每次嘗試的間隔秒數
+NAME="${NAME:-a1-free}"
+BOOT_GB="${BOOT_GB:-50}"
+SHAPE="VM.Standard.A1.Flex"
+
+IMAGE="&lt;IMAGE_OCID&gt;"
+SUBNET_ID="&lt;SUBNET_OCID&gt;"
+ADS=("&lt;AD_NAME&gt;")      # 多個 AD 就列多個，會輪流試
+COMPARTMENT="&lt;TENANCY_OCID&gt;"
+
+mkdir -p "$WORKDIR"; cd "$WORKDIR" || exit 1
+LOG="$WORKDIR/grab.log"; RESULT="$WORKDIR/result.txt"
+[ -s "$WORKDIR/ssh.pub" ] || { echo "ssh.pub 不存在或是空的" | tee -a "$LOG"; exit 1; }
+log() { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
+
+i=0
+while true; do
+  # 同名主機已存在就停止，避免重複開機
+  existing=$(oci compute instance list --compartment-id "$COMPARTMENT" --display-name "$NAME" \
+    --query "data[?\"lifecycle-state\"!='TERMINATED'].id | [0]" --raw-output 2&gt;/dev/null)
+  if [ -n "$existing" ] &amp;&amp; [ "$existing" != "null" ]; then
+    log "已存在同名主機 $existing，停止"; echo "instance=$existing" &gt; "$RESULT"; exit 0
+  fi
+
+  AD="${ADS[$((i % ${#ADS[@]}))]}"; i=$((i+1))
+  log "第 $i 次嘗試，AD=$AD，${OCPUS} OCPU / ${MEM} GB"
+
+  out=$(oci --no-retry compute instance launch \
+    --compartment-id "$COMPARTMENT" --availability-domain "$AD" \
+    --shape "$SHAPE" --shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEM}" \
+    --image-id "$IMAGE" --subnet-id "$SUBNET_ID" --display-name "$NAME" \
+    --boot-volume-size-in-gbs "$BOOT_GB" --assign-public-ip true \
+    --ssh-authorized-keys-file "$WORKDIR/ssh.pub" \
+    --wait-for-state RUNNING 2&gt;&amp;1)
+  rc=$?
+
+  if [ $rc -eq 0 ]; then
+    inst=$(echo "$out" | grep -o '"id": "ocid1\.instance[^"]*"' | head -1 | cut -d'"' -f4)
+    ip=$(oci compute instance list-vnics --instance-id "$inst" \
+      --query 'data[0]."public-ip"' --raw-output 2&gt;/dev/null)
+    log "成功！instance=$inst public-ip=$ip"
+    printf 'instance=%s\npublic_ip=%s\n' "$inst" "$ip" &gt; "$RESULT"
+    exit 0
+  fi
+
+  if echo "$out" | grep -qE 'Out of host capacity|Out of capacity|TooManyRequests|"status": 429|InternalError|"status": 500|timed out|ConnectionError|RequestException'; then
+    log "可重試錯誤，${DELAY} 秒後再試"; sleep "$DELAY"
+  elif echo "$out" | grep -q 'LimitExceeded'; then
+    log "LimitExceeded：要求超過配額，請調低 OCPUS/MEM"; exit 2
+  else
+    log "不可重試的錯誤，停止。輸出：$out"; exit 3
+  fi
+done</code></pre>
+        <div class="callout warn">
+          <p>我實際跑的版本，成功後用 python 解析主機 ID，結果解析失敗，<code>result.txt</code> 的 <code>instance</code> 和 <code>public_ip</code> 是空的。主機其實已經建好了，我是另外用 CLI 查到 IP。上面改成 <code>grep</code> 的寫法是事後修正，<strong>我沒有為了驗證這一行再搶一次主機</strong>。</p>
+        </div>
+
+        <h2>6. 執行與監看</h2>
+        <p>腳本要跑在不會睡眠的機器上。我是在 Windows 上用 Git Bash 執行，把 OCI CLI 的路徑加進 <code>PATH</code>：</p>
+<pre><code>export PATH="/c/o/Scripts:$PATH"
+cd ~/oci-grab
+chmod +x grab.sh
+nohup setsid ./grab.sh &gt; nohup.out 2&gt;&amp;1 &amp;
+tail -f grab.log</code></pre>
+        <p>log 長這樣，沒容量時會一直重複前兩行：</p>
+<pre><code>[2026-11-13 10:51:36] 第 1 次嘗試，AD=&lt;AD_NAME&gt;，2 OCPU / 12 GB
+[2026-11-13 10:51:57] 可重試錯誤，60 秒後再試</code></pre>
+        <p>要等結果出現，可以讓另一個程序輪詢 <code>result.txt</code>，一出現就通知自己。</p>
+
+        <h2>7. 搶到之後</h2>
+        <ol>
+          <li>用 CLI 確認狀態是 <code>RUNNING</code>、規格是 2 / 12，並查出公開 IP。</li>
+          <li>用 SSH 登入。Ubuntu 的預設使用者是 <code>ubuntu</code>，Oracle Linux 是 <code>opc</code>：
+<pre><code>ssh ubuntu@&lt;PUBLIC_IP&gt;</code></pre></li>
+          <li>登入後檢查系統：
+<pre><code>uname -m        # aarch64
+free -h         # 約 11 GiB 可用
+df -h /         # 約 48 GB</code></pre></li>
+        </ol>
+        <p>我沒有建 Reserved IP。臨時 IP 在正常重開機時不變，只有刪掉重建才會換。要不要建，建議先查 Oracle 定價頁再決定。</p>
+
+        <h2>8. 順便開一台 AMD 小主機</h2>
+        <p>AMD 小主機是獨立額度，容量比 A1 寬鬆，我一次就開成功。但它是 x86、只有 1 GB 記憶體，跟 ARM 的差異如下：</p>
+        <table>
+          <thead><tr><th></th><th>A1 ARM</th><th>AMD 小主機</th></tr></thead>
+          <tbody>
+            <tr><td>CPU 架構</td><td>ARM（aarch64）</td><td>x86_64</td></tr>
+            <tr><td>CPU</td><td>2 核</td><td>1/8 OCPU，可短暫借用額外 CPU</td></tr>
+            <tr><td>記憶體</td><td>12 GB</td><td>1 GB（可用約 700 MB）</td></tr>
+            <tr><td>頻寬</td><td>較高</td><td>最高 50 Mbps（官方文件）</td></tr>
+          </tbody>
+        </table>
+<pre><code>oci compute instance launch --compartment-id $T --availability-domain "&lt;AD_NAME&gt;" `
+  --shape VM.Standard.E2.1.Micro --image-id "&lt;X86_UBUNTU_IMAGE_OCID&gt;" `
+  --subnet-id "&lt;SUBNET_OCID&gt;" --display-name e2-free-1 --boot-volume-size-in-gbs 50 `
+  --assign-public-ip true --ssh-authorized-keys-file ssh.pub --wait-for-state RUNNING</code></pre>
+        <p>x86 映像檔要用 <code>--shape VM.Standard.E2.1.Micro</code> 去查，ARM 映像檔不能用在它上面。兩台加起來我用了 100 GB 磁碟，離 200 GB 上限還有空間。</p>
+
+        <h2>9. 別被收回，也別意外收費</h2>
+        <ul>
+          <li><strong>閒置回收</strong>：三項使用率的第 95 百分位同時低於 20% 才算閒置，所以只要其中一項高於 20% 就不算。A1 有 12 GB，20% 約 2.4 GB，用記憶體最容易過關。這是我依官方文件推算的，沒有實測。</li>
+          <li><strong>預算提醒</strong>：Billing → Budgets 設 1 美元，超額時通知自己。</li>
+          <li><strong>不要超額</strong>：A1 不超過 2 OCPU / 12 GB、AMD 小主機不超過 2 台、磁碟合計不超過 200 GB。</li>
+          <li><strong>別亂建其他資源</strong>：負載平衡器、額外磁碟、大規格主機，超出免費範圍都可能計費。</li>
+          <li><strong>備份</strong>：免費資源可能被回收，條款也可能調整，重要資料一定要另外備份。</li>
+        </ul>
+
+        <h2>10. 我踩到的坑</h2>
+        <h3>10.1 Windows 路徑長度上限（最大的一個）</h3>
+        <p><code>pip install oci-cli</code> 失敗了兩次，錯誤是找不到檔案，並提示系統沒有啟用長路徑。原因是 <code>oci-cli</code> 內建了幾千個說明檔，有些檔名超長，放在 <code>C:\Users\&lt;你&gt;\...</code> 這種深路徑底下，完整路徑會超過 Windows 預設的 260 字元。</p>
+        <ul>
+          <li>虛擬環境放在 <code>Temp</code> 底下、或 <code>C:\Users\&lt;你&gt;\ov</code>，還是失敗。</li>
+          <li>縮到 <code>C:\o</code> 才成功。</li>
+          <li>另一個做法是啟用 Windows 長路徑，但那是系統設定，我選擇不動它。用 WSL 或 Linux 機器也能繞過這個問題。</li>
+        </ul>
+        <h3>10.2 虛擬環境建不起來</h3>
+        <p>在很深的資料夾裡 <code>python -m venv</code> 會卡在 <code>ensurepip</code>，同樣是路徑長度造成的，換到短路徑就好。</p>
+        <h3>10.3 PowerShell 的 JMESPath 跳脫</h3>
+        <p><code>--query</code> 裡的欄位名稱有連字號（例如 <code>default-route-table-id</code>）就必須加引號。PowerShell 要寫成 <code>"data.\`"default-route-table-id\`""</code>，bash 則是 <code>'data."default-route-table-id"'</code>。沒跳脫會看到 <code>Unknown token '-'</code>。</p>
+        <h3>10.4 <code>--route-rules file://</code> 的路徑</h3>
+        <p>Windows 路徑要用正斜線：<code>file://C:/路徑/routes.json</code>，用反斜線會被當成多餘的參數。</p>
+        <h3>10.5 睡眠與長時間執行</h3>
+        <p>筆電睡眠或關機腳本就會停。重新啟動腳本沒有副作用，因為它每次嘗試前會先檢查同名主機。</p>
+        <h3>10.6 其他常見問題</h3>
+        <table>
+          <thead><tr><th>症狀</th><th>原因</th></tr></thead>
+          <tbody>
+            <tr><td>一直 <code>LimitExceeded</code></td><td>要求的 OCPU / 記憶體超過配額，調成 2 / 12</td></tr>
+            <tr><td>一直 429</td><td>請求太密，或 CLI 內建重試和腳本迴圈疊加</td></tr>
+            <tr><td>主機建好卻登不進去</td><td>把 API 公鑰當成 SSH 公鑰</td></tr>
+            <tr><td>CLI 驗證失敗</td><td>私鑰貼上後 PEM 頭尾或換行遺失，對照 fingerprint</td></tr>
+          </tbody>
+        </table>
+
+        <h2>我學到的</h2>
+        <ul>
+          <li>「搶不到」大多是 region 當下沒容量，不是自己設定錯，先看錯誤訊息是 <code>Out of host capacity</code> 還是 <code>LimitExceeded</code>。</li>
+          <li>重試腳本最重要的是：關掉內建重試、固定間隔、每次先查同名主機。</li>
+          <li>Windows 上裝 Python CLI 工具，路徑越短越安全。</li>
+          <li>免費額度以官方文件為準，社群說法（例如升級 PAYG）聽聽就好，沒有證據不要當成事實。</li>
+        </ul>
+        <p>參考資料：<a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Oracle Always Free Resources</a>；另有一篇中文教學（<a href="https://kelvinwang.info/zh-hant/blog/oracle-cloud-free-arm-claude-code/" target="_blank" rel="noopener">Kelvin Wang</a>）提供了整體流程的參考，腳本是我依描述自行實作的。</p>
+      </article>
+    </main>
+
+    <footer class="footer wrap">© 2026 翁祺鈞 Chi-Jiun Wong</footer>
+
+    <script>
+      document.getElementById('theme').addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('theme', next); } catch {}
+      });
+    </script>
+  </body>
+</html>
