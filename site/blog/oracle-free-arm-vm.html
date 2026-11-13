@@ -36,7 +36,7 @@
         <header>
           <h1>我搶到一台免費的雲端主機：Oracle Always Free ARM VM 的實際過程</h1>
           <div class="post-meta">2026-11-13 · 約 15 分鐘讀完</div>
-          <ul class="tags"><li>Oracle Cloud</li><li>雲端主機</li><li>ARM</li><li>Always Free</li></ul>
+          <ul class="tags"><li>Oracle Cloud</li><li>雲端主機</li><li>ARM</li><li>Always Free</li><li>雲端價格</li></ul>
           <p class="lead">Oracle Cloud 提供一台長期免費的 ARM 雲端主機（2 核、12 GB 記憶體），但要拿到它沒那麼簡單：我花了約 42 分鐘、重試 24 次才成功。這篇用我自己的實際過程，說明這是什麼、為什麼要「搶」、怎麼做，以及我踩到的坑。</p>
         </header>
 
@@ -109,7 +109,7 @@
             <li>查配額：<code>oci limits value list --service-name compute</code>；免費額度以官方文件為準，規格固定 2 OCPU / 12 GB。（唯讀）</li>
             <li>建網路：VCN、Internet Gateway、預設路由表加 <code>0.0.0.0/0</code>、公開子網路。（<strong>會在帳號建立資源，先問使用者</strong>）</li>
             <li>查映像檔 OCID 與 AD 名稱。（唯讀）</li>
-            <li>執行重試腳本（見步驟 4）。（<strong>會建立主機，先問使用者</strong>）</li>
+            <li>送出 <code>oci compute instance launch</code>，失敗時依錯誤類型決定等待重試或停止（見步驟 4）。（<strong>會建立主機，先問使用者</strong>）</li>
             <li>完成條件：<code>oci compute instance list</code> 出現狀態 RUNNING 的同名主機，且能用 <code>ssh ubuntu@&lt;IP&gt;</code> 登入。</li>
           </ol>
           <p>限制：作者只在 Windows 加 Git Bash 環境實際跑過；沒有在其他系統重跑；所有識別碼都要換成使用者自己的值，不要把金鑰印出來。</p>
@@ -136,6 +136,48 @@
         <div class="callout warn">
           <p>我的帳號用 CLI 查到的 A1 配額上限遠大於免費額度（region 16 核 / 96 GB）。那是<strong>配額上限，不是免費額度</strong>，超過 2 OCPU / 12 GB 的部分可能計費，所以腳本預設就卡在 2 / 12。</p>
         </div>
+
+        <h2>如果不用免費的，其他雲端大概要多少錢</h2>
+        <p>搶這台主機的時候，我很好奇：一樣規格的主機，在別的雲端一個月要付多少？以下是我在 2026-11-13 查到的公開牌價，<strong>不是我實際使用過的帳單</strong>。</p>
+        <div class="callout warn">
+          <p><strong>先看限制。</strong>沒有任何一家剛好是「2 核 ARM、12 GB 記憶體」，下表是最接近的規格，不能當成同規格比價。價格都是牌價（list price），不含稅、折扣、承諾使用折扣與試用抵用額度，月費一律用 730 小時換算，之後可能調整，要用之前請自己再查一次。多數官方價目頁是動態網頁，我有一部分是從官方的價目資料檔或 API 讀取，不一定和網頁上看到的完全一致。</p>
+        </div>
+        <table>
+          <thead><tr><th>服務商</th><th>機型（規格）</th><th>區域</th><th>每月約（含 50 GB 碟）</th></tr></thead>
+          <tbody>
+            <tr><td>Oracle（超出免費額度的隨用隨付）</td><td>A1：2 OCPU、12 GB</td><td>—</td><td>約 $29（USD）</td></tr>
+            <tr><td>AWS</td><td>r6g.large：2 vCPU、16 GiB</td><td>東京</td><td>約 $94</td></tr>
+            <tr><td>AWS</td><td>m6g.large：2 vCPU、8 GiB</td><td>東京</td><td>約 $77</td></tr>
+            <tr><td>Google Cloud</td><td>t2a-standard-2：2 vCPU、8 GiB</td><td>新加坡（T2A 沒有東京）</td><td>約 $75</td></tr>
+            <tr><td>Azure</td><td>E2ps_v6：2 vCPU、16 GiB</td><td>日本東部</td><td>約 $92</td></tr>
+            <tr><td>Azure</td><td>D2ps_v6：2 vCPU、8 GiB</td><td>日本東部</td><td>約 $71</td></tr>
+            <tr><td>Hetzner</td><td>CAX11：2 vCPU、4 GB（碟含在方案內）</td><td>歐洲</td><td>約 €6.49（不含 VAT）</td></tr>
+            <tr><td>Hetzner</td><td>CAX31：8 vCPU、16 GB（碟含在方案內）</td><td>歐洲</td><td>約 €21.49（不含 VAT）</td></tr>
+          </tbody>
+        </table>
+        <h3>怎麼算的</h3>
+        <ul>
+          <li><strong>Oracle</strong>：A1 隨用隨付是每 OCPU 每小時 $0.01、每 GB 記憶體每小時 $0.0015、區塊儲存每 GB 每月 $0.0255。2 × 730 × $0.01 + 12 × 730 × $0.0015 + 50 × $0.0255 ≈ $29.02。價目資料裡 A1 有一段免費區間，我推測就是 Always Free 額度，但資料沒有明說。這份價格沒有標示區域，「全球同價」我沒有驗證。</li>
+          <li><strong>AWS</strong>：東京、Linux、隨用隨付的每小時價乘以 730，再加 EBS gp3 每 GB 每月 $0.096 × 50 GB。另外公有 IPv4 位址每小時 $0.005（約每月 $3.65），上表沒有計入。</li>
+          <li><strong>Google Cloud</strong>：T2A 在官方區域選單裡沒有東京，所以用新加坡；T2A 不支援自訂機型，沒辦法湊成 12 GB。磁碟以 Balanced 持久碟每月 $0.11/GB 估算。</li>
+          <li><strong>Azure</strong>：日本東部、Linux 的每小時價乘以 730，再加 64 GiB 的 Standard SSD（50 GB 會被往上取整到這一級）每月約 $4.80。換成 Premium SSD 約 $11.74，每月會多約 $7。</li>
+          <li><strong>Hetzner</strong>：這兩款是歐洲機房，沒有亞洲地點，我查到的頁面也顯示它們暫時無法購買，所以只能當價位參考。</li>
+        </ul>
+        <h3>出站流量（我覺得最容易被忽略）</h3>
+        <p>Oracle 官方免費額度頁寫每月 10 TB 出站流量免費，這個數字在這張表裡是最大的差別。其他三家的牌價（我只列單價，不算總額，因為分級與目的地不同）：</p>
+        <ul>
+          <li>AWS：每月前 100 GB 免費，超過後東京出站約每 GB $0.114（前 10 TB）。</li>
+          <li>Azure：每月前 100 GB 免費，超過後約每 GB $0.11～$0.12，取決於路由方式；哪一種是預設，我沒有驗證。</li>
+          <li>Google Cloud：新加坡或東京出站到亞洲約每 GB $0.11～$0.12；官方頁上我沒看到免費額度，標為「查不到」。</li>
+        </ul>
+        <p>所以如果你的主機會有大量對外流量，費用差距會比機器本身大得多。</p>
+        <h3>我查不到或不確定的部分</h3>
+        <ul>
+          <li>Scaleway 等其他業者：官方價目頁讀不到，我沒有寫進來。</li>
+          <li>Hetzner 超額流量的單價，頁面文字看起來有誤，我沒有引用。</li>
+          <li>歐元的價格我沒有換算成美元。</li>
+          <li>這些是公開牌價，不構成任何購買建議。</li>
+        </ul>
 
         <h2>步驟 1：準備 OCI CLI 與 API 金鑰</h2>
         <h3>1.1 建立 API 金鑰</h3>
@@ -196,7 +238,7 @@ oci network security-list get --security-list-id $sl --query "data.\`"ingress-se
           <p>預設是對 <code>0.0.0.0/0</code> 開放 SSH。搶到之後建議把來源限縮成自己的 IP，並考慮停用密碼登入。</p>
         </div>
 
-        <h2>步驟 3：查腳本需要的三個值</h2>
+        <h2>步驟 3：查建立主機需要的三個值</h2>
 <pre><code># Ubuntu 24.04 ARM 映像檔
 oci compute image list --compartment-id $T --operating-system "Canonical Ubuntu" `
   --operating-system-version "24.04" --shape VM.Standard.A1.Flex `
@@ -204,91 +246,30 @@ oci compute image list --compartment-id $T --operating-system "Canonical Ubuntu"
 
 # Availability Domain 名稱
 oci iam availability-domain list --compartment-id $T --query "data[].name"</code></pre>
-        <p>子網路 OCID 就是上一節的 <code>$sub</code>。另外準備一把 SSH 金鑰，公鑰存成 <code>ssh.pub</code>，之後登入就用對應的私鑰。</p>
+        <p>子網路 OCID 就是上一節建出來的那個。另外要準備一把 SSH 金鑰：公鑰在建立主機時交給 Oracle，之後登入就用對應的私鑰。我用的是自己電腦上原本就有的一把。</p>
 
-        <h2>步驟 4：搶機腳本</h2>
-        <p>邏輯很單純：呼叫「建立主機」API，失敗就看錯誤類型。沒容量、被限流、逾時這類錯誤等一下再試；<code>LimitExceeded</code> 或其他無法重試的錯誤就停止。</p>
+        <h2>步驟 4：重複申請，直到成功</h2>
+        <p>核心動作只有一個：對 Oracle 送出「建立主機」的請求。成功就結束，失敗就等一下再送。我用一支 bash 腳本來重複這件事，這裡不貼完整腳本，只說明它做什麼，以及實際用到的指令。</p>
+        <p>建立主機用的是這個指令（識別碼用你自己的值）：</p>
+<pre><code>oci compute instance launch   --compartment-id &lt;TENANCY_OCID&gt; --availability-domain &lt;AD_NAME&gt;   --shape VM.Standard.A1.Flex --shape-config '{"ocpus":2,"memoryInGBs":12}'   --image-id &lt;IMAGE_OCID&gt; --subnet-id &lt;SUBNET_OCID&gt;   --boot-volume-size-in-gbs 50 --assign-public-ip true   --ssh-authorized-keys-file &lt;SSH 公鑰檔&gt; --wait-for-state RUNNING</code></pre>
+        <p>我的腳本在這個指令外面包了一層迴圈：</p>
         <ul>
-          <li>設定 <code>OCI_CLI_MAX_RETRIES=0</code>，讓重試只由腳本控制，固定每 60 秒打一次。</li>
-          <li>每次嘗試前先查有沒有同名主機，已存在就停止，避免重複開機。</li>
-          <li>預設 2 OCPU / 12 GB、50 GB 開機磁碟。</li>
+          <li>每次失敗後固定等 60 秒再試。</li>
+          <li>把失敗分成兩類：一類是稍後可以再試（例如暫時沒位子、連線逾時），另一類是再試也沒用（例如超過配額）。後者出現就停止。</li>
+          <li>送出請求之前，先查有沒有同名主機，已經有就停止，避免重複開機。</li>
+          <li>把每一次嘗試的時間與判定寫進 log。</li>
         </ul>
-<pre><code>#!/usr/bin/env bash
-set -u
-export OCI_CLI_MAX_RETRIES=0
-
-WORKDIR="${WORKDIR:-$HOME/oci-grab}"
-OCPUS="${OCPUS:-2}"        # 免費額度以 2 OCPU / 12 GB 為準
-MEM="${MEM:-12}"
-DELAY="${DELAY:-60}"       # 每次嘗試的間隔秒數
-NAME="${NAME:-a1-free}"
-BOOT_GB="${BOOT_GB:-50}"
-SHAPE="VM.Standard.A1.Flex"
-
-IMAGE="&lt;IMAGE_OCID&gt;"
-SUBNET_ID="&lt;SUBNET_OCID&gt;"
-ADS=("&lt;AD_NAME&gt;")      # 多個 AD 就列多個，會輪流試
-COMPARTMENT="&lt;TENANCY_OCID&gt;"
-
-mkdir -p "$WORKDIR"; cd "$WORKDIR" || exit 1
-LOG="$WORKDIR/grab.log"; RESULT="$WORKDIR/result.txt"
-[ -s "$WORKDIR/ssh.pub" ] || { echo "ssh.pub 不存在或是空的" | tee -a "$LOG"; exit 1; }
-log() { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
-
-i=0
-while true; do
-  # 同名主機已存在就停止，避免重複開機
-  existing=$(oci compute instance list --compartment-id "$COMPARTMENT" --display-name "$NAME" \
-    --query "data[?\"lifecycle-state\"!='TERMINATED'].id | [0]" --raw-output 2&gt;/dev/null)
-  if [ -n "$existing" ] &amp;&amp; [ "$existing" != "null" ]; then
-    log "已存在同名主機 $existing，停止"; echo "instance=$existing" &gt; "$RESULT"; exit 0
-  fi
-
-  AD="${ADS[$((i % ${#ADS[@]}))]}"; i=$((i+1))
-  log "第 $i 次嘗試，AD=$AD，${OCPUS} OCPU / ${MEM} GB"
-
-  out=$(oci --no-retry compute instance launch \
-    --compartment-id "$COMPARTMENT" --availability-domain "$AD" \
-    --shape "$SHAPE" --shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEM}" \
-    --image-id "$IMAGE" --subnet-id "$SUBNET_ID" --display-name "$NAME" \
-    --boot-volume-size-in-gbs "$BOOT_GB" --assign-public-ip true \
-    --ssh-authorized-keys-file "$WORKDIR/ssh.pub" \
-    --wait-for-state RUNNING 2&gt;&amp;1)
-  rc=$?
-
-  if [ $rc -eq 0 ]; then
-    inst=$(echo "$out" | grep -o '"id": "ocid1\.instance[^"]*"' | head -1 | cut -d'"' -f4)
-    ip=$(oci compute instance list-vnics --instance-id "$inst" \
-      --query 'data[0]."public-ip"' --raw-output 2&gt;/dev/null)
-    log "成功！instance=$inst public-ip=$ip"
-    printf 'instance=%s\npublic_ip=%s\n' "$inst" "$ip" &gt; "$RESULT"
-    exit 0
-  fi
-
-  if echo "$out" | grep -qE 'Out of host capacity|Out of capacity|TooManyRequests|"status": 429|InternalError|"status": 500|timed out|ConnectionError|RequestException'; then
-    log "可重試錯誤，${DELAY} 秒後再試"; sleep "$DELAY"
-  elif echo "$out" | grep -q 'LimitExceeded'; then
-    log "LimitExceeded：要求超過配額，請調低 OCPUS/MEM"; exit 2
-  else
-    log "不可重試的錯誤，停止。輸出：$out"; exit 3
-  fi
-done</code></pre>
         <div class="callout warn">
-          <p>我實際跑的版本，成功後用 python 解析主機 ID，結果解析失敗，<code>result.txt</code> 的 <code>instance</code> 和 <code>public_ip</code> 是空的。主機其實已經建好了，我是另外用 CLI 查到 IP。上面改成 <code>grep</code> 的寫法是事後修正，<strong>我沒有為了驗證這一行再搶一次主機</strong>。</p>
+          <p>我實際跑的版本，成功後用 python 解析主機 ID，結果解析失敗，結果檔裡的主機 ID 與公開 IP 是空的。主機其實已經建好了，我是另外用 CLI 查到 IP。</p>
         </div>
+        <p>如果你想自己寫，建議從這個思路出發，再依自己的環境調整。成功與否，最後都要用 <code>oci compute instance list</code> 實際確認。</p>
 
-        <h2>步驟 5：執行與監看</h2>
-        <p>腳本要跑在不會睡眠的機器上。我是在 Windows 上用 Git Bash 執行，把 OCI CLI 的路徑加進 <code>PATH</code>：</p>
-<pre><code>export PATH="/c/o/Scripts:$PATH"
-cd ~/oci-grab
-chmod +x grab.sh
-nohup setsid ./grab.sh &gt; nohup.out 2&gt;&amp;1 &amp;
-tail -f grab.log</code></pre>
-        <p>log 長這樣，沒搶到時會一直重複前兩行（log 只記錄腳本的判定，我沒有把 CLI 的原始錯誤訊息存下來，所以我無法逐次確認每次的原因）：</p>
-<pre><code>[2026-11-13 10:51:36] 第 1 次嘗試，AD=&lt;AD_NAME&gt;，2 OCPU / 12 GB
-[2026-11-13 10:51:57] 可重試錯誤，60 秒後再試</code></pre>
-        <p>要等結果出現，可以讓另一個程序輪詢 <code>result.txt</code>，一出現就通知自己。</p>
-        <p>補一個邊界情況：如果 <code>--wait-for-state</code> 等待逾時，錯誤訊息不一定包含 <code>timed out</code>，腳本會把它當成不可重試而結束（結束碼 3），但主機其實可能已經建好。重新執行腳本即可，它會先用同名檢查接住，不會重複開機。</p>
+        <h2>步驟 5：讓它在背景跑，並確認狀態</h2>
+        <p>這支腳本需要一直開著，電腦不能睡眠。我是在 Windows 上用 Git Bash 執行，並讓它在背景運作，另外用指令查它的 log。</p>
+        <p>log 長這樣，沒搶到時會一直重複這兩種訊息（log 只記錄腳本的判定，我沒有把 CLI 的原始錯誤訊息存下來，所以我無法逐次確認每次的原因）：</p>
+<pre><code>[時間] 第 N 次嘗試，AD=&lt;AD_NAME&gt;，2 OCPU / 12 GB
+[時間] 可重試錯誤，60 秒後再試</code></pre>
+        <p>成功的那一次，log 會寫下「成功」以及主機 ID。</p>
 
         <h2>步驟 6：搶到之後，確認主機可用</h2>
         <ol>
@@ -300,7 +281,7 @@ tail -f grab.log</code></pre>
 free -h         # 約 11 GiB 可用
 df -h /         # 約 48 GB</code></pre></li>
         </ol>
-        <p>我沒有建 Reserved IP。臨時 IP 在正常重開機時不變，只有刪掉重建才會換。要不要建，建議先查 Oracle 定價頁再決定。</p>
+        <p>我沒有建 Reserved IP（固定 IP）。我拿到的是系統自動配的臨時 IP，它重開機後會不會變，我沒有測；官方的免費額度頁也沒有說 Reserved IP 是否免費，要不要建，建議先查 Oracle 的定價頁再決定。</p>
 
         <h2>加碼：順便開一台 AMD 小主機</h2>
         <p>AMD 小主機是獨立額度，我只試了一次就開成功（一次的結果，不代表一定容易）。但它是 x86、只有 1 GB 記憶體，跟 ARM 的差異如下：</p>
@@ -316,7 +297,7 @@ df -h /         # 約 48 GB</code></pre></li>
 <pre><code>oci compute instance launch --compartment-id $T --availability-domain "&lt;AD_NAME&gt;" `
   --shape VM.Standard.E2.1.Micro --image-id "&lt;X86_UBUNTU_IMAGE_OCID&gt;" `
   --subnet-id "&lt;SUBNET_OCID&gt;" --display-name e2-free-1 --boot-volume-size-in-gbs 50 `
-  --assign-public-ip true --ssh-authorized-keys-file ssh.pub --wait-for-state RUNNING</code></pre>
+  --assign-public-ip true --ssh-authorized-keys-file &lt;SSH 公鑰檔&gt; --wait-for-state RUNNING</code></pre>
         <p>x86 映像檔要用 <code>--shape VM.Standard.E2.1.Micro</code> 去查，ARM 映像檔不能用在它上面。兩台加起來我用了 100 GB 磁碟，離 200 GB 上限還有空間。</p>
 
         <h2>我實際開的資源，與官方文件寫的限制</h2>
@@ -341,10 +322,8 @@ df -h /         # 約 48 GB</code></pre></li>
         <p>這個反斜線加反引號的寫法，我只在 Windows PowerShell 5.1 上實測過。PowerShell 7.3 之後改了傳給外部程式的引數處理方式，這寫法可能失效，到時請改用單引號版本；7.x 我沒有環境，沒測。</p>
         <h3>坑 4：<code>--route-rules file://</code> 的路徑</h3>
         <p>Windows 路徑要用正斜線：<code>file://C:/路徑/routes.json</code>，用反斜線會被當成多餘的參數。</p>
-        <h3>坑 5：睡眠與長時間執行</h3>
-        <p>筆電睡眠或關機腳本就會停。重新啟動腳本沒有副作用，因為它每次嘗試前會先檢查同名主機。</p>
-        <h3>坑 6：腳本的結果檔 IP 是空的</h3>
-        <p>前面「步驟 4」提過：我實際跑的版本用 python 解析主機 ID，解析失敗，<code>result.txt</code> 的 <code>instance</code> 與 <code>public_ip</code> 是空的。主機已經建好，我另外用 <code>oci compute instance list</code> 和 <code>list-vnics</code> 查到 IP。</p>
+        <h3>坑 5：腳本的結果檔 IP 是空的</h3>
+        <p>前面「步驟 4」提過：我實際跑的版本用 python 解析主機 ID，解析失敗，結果檔的主機 ID 與公開 IP 是空的。主機已經建好，我另外用 <code>oci compute instance list</code> 和 <code>list-vnics</code> 查到 IP。</p>
 
         <h2>我學到的</h2>
         <ul>
@@ -353,7 +332,7 @@ df -h /         # 約 48 GB</code></pre></li>
           <li>升級 Pay As You Go 的時間點和搶到很接近，但我沒有確認升級是否生效，所以我不知道兩者有沒有關係。</li>
           <li>免費額度以 Oracle 官方文件為準，我只讀了其中一頁，計費細節沒有逐項查證。</li>
         </ul>
-        <p>參考資料：<a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Oracle Always Free Resources</a>（官方文件）。本文的指令、腳本與踩坑，都是我在自己的機器上實際執行後的紀錄。</p>
+        <p>參考資料：<a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Oracle Always Free Resources</a>（官方文件）。文中的指令與踩坑，是我在自己的機器上實際執行時遇到的；「可以拿來做什麼」一節是想法，我還沒實際跑過。</p>
       </article>
     </main>
 
