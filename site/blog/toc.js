@@ -131,7 +131,7 @@
     if (e.target.closest('a')) setOpen(false);
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') setOpen(false);
+    if (e.key === 'Escape' && nav.classList.contains('open')) { setOpen(false); btn.focus(); }
   });
   document.addEventListener('click', (e) => {
     if (!nav.contains(e.target)) setOpen(false);

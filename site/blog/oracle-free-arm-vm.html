@@ -69,10 +69,10 @@
         <h2 id="payg">PAYG（Pay As You Go）</h2>
         <ul>
           <li><strong>Free Trial</strong>：$300 抵用額度、最多 30 天。註冊需要手機與信用卡，官方寫升級前不會扣款。</li>
-          <li><strong>Always Free</strong>：不會到期，試用結束後已建好的資源不中斷。若 A1 超過 2 OCPU / 12 GB，會被停用，30 天後刪除，除非升級。</li>
+          <li><strong>Always Free</strong>：不會到期，試用結束後已建好的資源不中斷。試用結束時若 A1 超過 2 OCPU / 12 GB，會被停用，30 天後刪除，除非升級。</li>
           <li><strong>PAYG</strong>：付費帳號、無承諾期；Always Free 資源仍然免費，超出額度的部分才計費。</li>
         </ul>
-        <p><strong>一定要升級嗎？</strong>社群上常有人說，一定要先升級成 PAYG 才申請得到這台免費主機。這是社群的說法：官方文件沒有寫這個要求，也沒有寫升級會提高成功率。我在重試期間升級了，但沒確認生效時間，無法驗證這個說法。</p>
+        <p><strong>一定要升級嗎？</strong>社群上常有人說，一定要先升級成 PAYG 才申請得到這台免費主機。這是社群的說法：官方文件沒有寫這個要求，也沒有寫升級會提高成功率。官方寫的是：遇到 <code>out of host capacity</code> 錯誤，代表 home region 暫時缺少 Always Free 的 shape，可以換 Availability Domain、稍後再試，或升級 PAYG 以使用更多種運算資源。我在重試期間升級了，但沒確認生效時間，無法驗證這個說法。</p>
         <p><strong>怎麼升級：</strong>Console 頂端橫幅點 Upgrade；沒看到就點左上角 Oracle Cloud 標誌，在首頁右側欄找。</p>
 
         <h2 id="cost">其他雲端的費用</h2>
@@ -138,7 +138,7 @@ oci compute image list --compartment-id $T --operating-system "Canonical Ubuntu"
 
 # Availability Domain 名稱
 oci iam availability-domain list --compartment-id $T --query "data[].name"</code></pre>
-        <p>第三個值是步驟 2 的子網路 OCID。另外準備一把 SSH 金鑰，公鑰在建立主機時交給 Oracle。</p>
+        <p>第三個值是步驟 2 的子網路 OCID。步驟 2、3 在同一個 PowerShell 視窗做（沿用 <code>$T</code>、<code>$vcn</code>）；步驟 4 起是 bash，變數不會帶過去，要換成實際的值。另外準備一把 SSH 金鑰，公鑰在建立主機時交給 Oracle。</p>
 
         <h3 id="step-4">步驟 4：重複申請主機</h3>
 <pre><code>oci compute instance launch \
@@ -167,14 +167,14 @@ df -h /     # 約 48 GB</code></pre>
 
         <h4 id="step-6-1">6.1 開放 80 與 443</h4>
         <p>要放行兩層：Security List 與 Ubuntu 映像檔自己的 iptables。Security List 的 <code>update</code> 是整份取代，要先取出現有規則、加上新的、再整份送回：</p>
-<pre><code>$sl = "&lt;SECURITY_LIST_OCID&gt;"
+<pre><code>$sl = oci network vcn get --vcn-id $vcn --query "data.\`"default-security-list-id\`"" --raw-output
 oci network security-list get --security-list-id $sl --query "data.\`"ingress-security-rules\`"" &gt; ingress-backup.json
 # 把現有規則加上 80、443，存成 ingress-new.json（UTF-8，不要有 BOM）
 oci network security-list update --security-list-id $sl `
   --ingress-security-rules "file://C:/路徑/ingress-new.json" --force</code></pre>
 <pre><code>{"protocol":"6","source":"0.0.0.0/0","source-type":"CIDR_BLOCK","is-stateless":false,
  "tcp-options":{"destination-port-range":{"min":80,"max":80}}}</code></pre>
-        <p>主機這層：預設 INPUT 規則的最後一條是拒絕，新規則要插在它前面（先用 <code>sudo iptables -S INPUT</code> 看順序），並存檔：</p>
+        <p>主機這層：預設 INPUT 規則的最後一條是拒絕，新規則要插在它前面（先用 <code>sudo iptables -S INPUT</code> 看順序；下面的行號 5、6 是我的輸出，請依你的調整），並存檔：</p>
 <pre><code>sudo iptables -I INPUT 5 -p tcp -m state --state NEW --dport 80 -j ACCEPT
 sudo iptables -I INPUT 6 -p tcp -m state --state NEW --dport 443 -j ACCEPT
 sudo netfilter-persistent save</code></pre>
@@ -189,7 +189,7 @@ sudo apt-get update &amp;&amp; sudo apt-get install -y caddy
 sudo mkdir -p /var/www/chijiun &amp;&amp; sudo chown ubuntu:ubuntu /var/www/chijiun
 git clone https://github.com/&lt;帳號&gt;/&lt;repo&gt;.git /var/www/chijiun</code></pre>
         <p><code>/etc/caddy/Caddyfile</code>，先只聽 80，用 IP 測試（<code>curl -I http://&lt;VM_IP&gt;/</code> 應回 200）：</p>
-<pre><code>:80 {
+<pre><code>(site) {
 	root * /var/www/chijiun/site
 	encode zstd gzip
 	file_server
@@ -197,6 +197,10 @@ git clone https://github.com/&lt;帳號&gt;/&lt;repo&gt;.git /var/www/chijiun</c
 		rewrite * /404.html
 		file_server
 	}
+}
+
+:80 {
+	import site
 }</code></pre>
         <p>讓網站在 push 之後自動更新：用 systemd timer 每 2 分鐘 <code>git pull</code>（兩個檔案放在 <code>/etc/systemd/system/</code>），再啟用：</p>
 <pre><code># chijiun-sync.service
@@ -218,7 +222,7 @@ sudo systemctl reload caddy</code></pre>
 
         <h4 id="step-6-3">6.3 切換網域（以 Cloudflare 為例）</h4>
         <ol>
-          <li>Cloudflare 的 SSL/TLS 是「完整（Full）」，它接受來源伺服器上不受信任的憑證，所以先讓 Caddy 用內建 CA 的憑證，Caddyfile 加一個網域區塊（<code>site</code> 是把上面 <code>:80</code> 區塊的設定抽成的 <code>(site)</code> 片段）：
+          <li>Cloudflare 的 SSL/TLS 是「完整（Full）」，它接受來源伺服器上不受信任的憑證，所以先讓 Caddy 用內建 CA 的憑證，Caddyfile 加一個網域區塊（<code>site</code> 就是 6.2 定義的片段），改完執行 <code>sudo systemctl reload caddy</code>：
 <pre><code>chijiun.com, www.chijiun.com {
 	tls internal
 	import site
