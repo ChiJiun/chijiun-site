@@ -523,6 +523,7 @@ const cmds = [
   { label: '研究', alias: ':e research', run: () => goTo('research') },
   { label: '經歷', alias: ':e experience', run: () => goTo('experience') },
   { label: '作品', alias: ':e projects', run: () => goTo('projects') },
+  { label: '文章', alias: ':blog', run: () => { location.href = 'blog/'; } },
   ...editor.files.map((f, i) => ({ label: `經歷 › ${f.name}`, alias: `:e ${f.name.split('.')[0]}`, run: () => editor.show(i) })),
   ...(contactOn ? [{ label: '寫信給我', alias: ':mail', run: () => { goTo('contact'); $('contact-form').elements.namedItem('name').focus({ preventScroll: true }); } }] : []),
   { label: '切換深色／淺色', alias: ':theme', run: () => toggleTheme() },
