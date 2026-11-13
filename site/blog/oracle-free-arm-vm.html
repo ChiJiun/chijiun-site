@@ -37,7 +37,7 @@
           <h1>搶 Oracle Cloud 免費 ARM VM：從零到 SSH 登入的完整流程</h1>
           <div class="post-meta">2026-11-13 · 約 15 分鐘讀完</div>
           <ul class="tags"><li>Oracle Cloud</li><li>OCI CLI</li><li>ARM</li><li>Always Free</li></ul>
-          <p class="lead">Oracle Cloud 的 Always Free 有一台 ARM 主機（2 OCPU、12 GB 記憶體），但東京 region 常常回「沒容量」。我用 OCI CLI 和一支每分鐘重試的腳本去搶，第 24 次嘗試成功，前後約 42 分鐘。這篇把流程、指令、完整腳本，和我在 Windows 上踩到的坑一起記下來。</p>
+          <p class="lead">Oracle Cloud 的 Always Free 有一台 ARM 主機（2 OCPU、12 GB 記憶體），但聽說東京 region 常常搶不到。我用 OCI CLI 和一支每分鐘重試的腳本去搶，第 24 次嘗試成功，前後約 42 分鐘。這篇把流程、指令、完整腳本，和我在 Windows 上踩到的坑一起記下來。</p>
         </header>
 
         <div class="callout warn">
@@ -46,8 +46,8 @@
 
         <h2>結果先看</h2>
         <ul class="timeline">
-          <li><time>10:51</time>腳本開始跑，第 1 次嘗試：<code>Out of host capacity</code></li>
-          <li><time>11:10 左右</time>第 12 次嘗試，仍然沒容量；期間我按了升級 Pay As You Go</li>
+          <li><time>10:51</time>腳本開始跑，第 1 次嘗試被判定為可重試錯誤，60 秒後再試</li>
+          <li><time>11:10 左右</time>第 12 次嘗試，仍然是可重試錯誤；期間我按了升級 Pay As You Go</li>
           <li><time>11:33</time>第 24 次嘗試成功，一次就建出主機，沒有重複開機</li>
         </ul>
         <table>
@@ -56,7 +56,7 @@
             <tr><td>Region</td><td>東京（<code>ap-tokyo-1</code>），只有一個 Availability Domain</td></tr>
             <tr><td>Shape</td><td><code>VM.Standard.A1.Flex</code>，2 OCPU / 12 GB</td></tr>
             <tr><td>系統</td><td>Ubuntu 24.04 aarch64，開機磁碟約 48 GB 可用</td></tr>
-            <tr><td>搶到的方式</td><td>重試腳本，每輪約 80 秒（請求約 20 秒 + 等待 60 秒）</td></tr>
+            <tr><td>搶到的方式</td><td>重試腳本，每輪約 1.5～2 分鐘（請求約 20 秒 + 查詢同名主機 + 等待 60 秒；24 次嘗試共花約 42 分鐘）</td></tr>
           </tbody>
         </table>
         <div class="callout">
@@ -77,7 +77,7 @@
         </table>
         <ul>
           <li>升級 Pay As You Go 之後，Always Free 資源仍然免費，只有超出額度的部分才計費。</li>
-          <li>7 天內 CPU、網路、記憶體（記憶體只看 A1）的第 95 百分位都低於 20%，主機可能被當成閒置回收。</li>
+          <li>7 天內 CPU 的第 95 百分位低於 20%，而且網路、記憶體（記憶體只看 A1）的使用率也低於 20%，主機可能被當成閒置回收。官方文字只明確寫 CPU 是第 95 百分位，網路與記憶體怎麼取樣，文件沒有細說。</li>
           <li>Reserved Public IP 是否免費，文件沒有載明，所以我沒建。</li>
           <li>免費規格可選的映像檔只有 Linux，沒有 Windows。</li>
         </ul>
@@ -93,7 +93,6 @@
           <li>畫面會顯示一段設定檔內容，裡面有 <code>user</code>、<code>fingerprint</code>、<code>tenancy</code>、<code>region</code>，先留著。</li>
           <li>把私鑰放到 <code>~/.oci/oci_api_key.pem</code>，並限縮權限（只有自己可讀寫）。</li>
         </ol>
-        <p>Console 提供的 API 公鑰（<code>-----BEGIN PUBLIC KEY-----</code>）<strong>不能</strong>當作 SSH 公鑰，兩者是不同用途，這是常見的踩坑。</p>
 
         <h3>2.2 建立設定檔</h3>
         <p>把剛才的內容存成 <code>~/.oci/config</code>，並把 <code>key_file</code> 改成私鑰的實際路徑：</p>
@@ -115,12 +114,11 @@ C:\o\Scripts\oci.exe --version</code></pre>
         <p>看到你的 home region 狀態是 <code>READY</code>，代表金鑰和 fingerprint 都正確。</p>
 
         <h3>2.4 查 A1 配額</h3>
-<pre><code>oci limits value list --compartment-id &lt;TENANCY_OCID&gt; --service-name compute --all \
-  --query "data[?contains(name,'standard-a1')]"</code></pre>
-        <p>如果之後腳本一直回 <code>LimitExceeded</code>，通常是要求的規格超過配額，不是沒容量。</p>
+<pre><code>oci limits value list --compartment-id &lt;TENANCY_OCID&gt; --service-name compute --all --query "data[?contains(name,'standard-a1')]"</code></pre>
+        <p>我的帳號查到的上限遠大於免費額度（region 16 核 / 96 GB），但那是配額上限，不是免費額度，所以後面的腳本把規格固定在 2 OCPU / 12 GB。</p>
 
         <h2>3. 建網路</h2>
-        <p>主機需要 VCN、Internet Gateway、路由和公開子網路。下面是 PowerShell 版本，全部建在 root compartment；教學作者說這些網路資源本身不收費。</p>
+        <p>主機需要 VCN、Internet Gateway、路由和公開子網路。下面是 PowerShell 版本，全部建在 root compartment。官方的免費額度頁只列了 VCN 的數量上限，沒有明說這些網路資源收不收費，建議建完之後到 Billing 自己確認。</p>
 <pre><code>$T = "&lt;TENANCY_OCID&gt;"
 
 $vcn = oci network vcn create --compartment-id $T --cidr-block 10.0.0.0/16 `
@@ -159,9 +157,9 @@ oci iam availability-domain list --compartment-id $T --query "data[].name"</code
         <h2>5. 搶機腳本</h2>
         <p>邏輯很單純：呼叫「建立主機」API，失敗就看錯誤類型。沒容量、被限流、逾時這類錯誤等一下再試；<code>LimitExceeded</code> 或其他無法重試的錯誤就停止。</p>
         <ul>
-          <li>關掉 CLI 內建重試（<code>OCI_CLI_MAX_RETRIES=0</code>），並固定 60 秒才打一次，避免和腳本迴圈疊加，吃到 429。</li>
-          <li>每次嘗試前先查有沒有同名主機。連線逾時但其實已建立的情況，就不會重複開機。</li>
-          <li>預設 2 OCPU / 12 GB、50 GB 開機磁碟，這是免費範圍。</li>
+          <li>設定 <code>OCI_CLI_MAX_RETRIES=0</code>，讓重試只由腳本控制，固定每 60 秒打一次。</li>
+          <li>每次嘗試前先查有沒有同名主機，已存在就停止，避免重複開機。</li>
+          <li>預設 2 OCPU / 12 GB、50 GB 開機磁碟。</li>
         </ul>
 <pre><code>#!/usr/bin/env bash
 set -u
@@ -234,10 +232,11 @@ cd ~/oci-grab
 chmod +x grab.sh
 nohup setsid ./grab.sh &gt; nohup.out 2&gt;&amp;1 &amp;
 tail -f grab.log</code></pre>
-        <p>log 長這樣，沒容量時會一直重複前兩行：</p>
+        <p>log 長這樣，沒搶到時會一直重複前兩行（log 只記錄腳本的判定，我沒有把 CLI 的原始錯誤訊息存下來，所以我無法逐次確認每次的原因）：</p>
 <pre><code>[2026-11-13 10:51:36] 第 1 次嘗試，AD=&lt;AD_NAME&gt;，2 OCPU / 12 GB
 [2026-11-13 10:51:57] 可重試錯誤，60 秒後再試</code></pre>
         <p>要等結果出現，可以讓另一個程序輪詢 <code>result.txt</code>，一出現就通知自己。</p>
+        <p>補一個邊界情況：如果 <code>--wait-for-state</code> 等待逾時，錯誤訊息不一定包含 <code>timed out</code>，腳本會把它當成不可重試而結束（結束碼 3），但主機其實可能已經建好。重新執行腳本即可，它會先用同名檢查接住，不會重複開機。</p>
 
         <h2>7. 搶到之後</h2>
         <ol>
@@ -252,7 +251,7 @@ df -h /         # 約 48 GB</code></pre></li>
         <p>我沒有建 Reserved IP。臨時 IP 在正常重開機時不變，只有刪掉重建才會換。要不要建，建議先查 Oracle 定價頁再決定。</p>
 
         <h2>8. 順便開一台 AMD 小主機</h2>
-        <p>AMD 小主機是獨立額度，容量比 A1 寬鬆，我一次就開成功。但它是 x86、只有 1 GB 記憶體，跟 ARM 的差異如下：</p>
+        <p>AMD 小主機是獨立額度，我只試了一次就開成功（一次的結果，不代表一定容易）。但它是 x86、只有 1 GB 記憶體，跟 ARM 的差異如下：</p>
         <table>
           <thead><tr><th></th><th>A1 ARM</th><th>AMD 小主機</th></tr></thead>
           <tbody>
@@ -268,13 +267,11 @@ df -h /         # 約 48 GB</code></pre></li>
   --assign-public-ip true --ssh-authorized-keys-file ssh.pub --wait-for-state RUNNING</code></pre>
         <p>x86 映像檔要用 <code>--shape VM.Standard.E2.1.Micro</code> 去查，ARM 映像檔不能用在它上面。兩台加起來我用了 100 GB 磁碟，離 200 GB 上限還有空間。</p>
 
-        <h2>9. 別被收回，也別意外收費</h2>
+        <h2>9. 我實際開的資源，與官方文件寫的限制</h2>
         <ul>
-          <li><strong>閒置回收</strong>：三項使用率的第 95 百分位同時低於 20% 才算閒置，所以只要其中一項高於 20% 就不算。A1 有 12 GB，20% 約 2.4 GB，用記憶體最容易過關。這是我依官方文件推算的，沒有實測。</li>
-          <li><strong>預算提醒</strong>：Billing → Budgets 設 1 美元，超額時通知自己。</li>
-          <li><strong>不要超額</strong>：A1 不超過 2 OCPU / 12 GB、AMD 小主機不超過 2 台、磁碟合計不超過 200 GB。</li>
-          <li><strong>別亂建其他資源</strong>：負載平衡器、額外磁碟、大規格主機，超出免費範圍都可能計費。</li>
-          <li><strong>備份</strong>：免費資源可能被回收，條款也可能調整，重要資料一定要另外備份。</li>
+          <li><strong>我實際開的</strong>：一台 A1（2 OCPU / 12 GB、50 GB 磁碟）加一台 AMD 小主機（50 GB 磁碟），磁碟合計 100 GB，沒有超過官方文件寫的 200 GB。</li>
+          <li><strong>官方文件寫的閒置回收規則</strong>：Always Free 主機若 7 天內 CPU 的第 95 百分位低於 20%，而且網路、記憶體（記憶體只看 A1）使用率也低於 20%，可能被回收。我才剛搶到，還沒有觀察到實際會不會被回收，所以這部分我沒有經驗可以分享。</li>
+          <li><strong>我沒有做的</strong>：Reserved IP（文件沒說免不免費）、負載平衡器、其他額外資源。</li>
         </ul>
 
         <h2>10. 我踩到的坑</h2>
@@ -289,29 +286,22 @@ df -h /         # 約 48 GB</code></pre></li>
         <p>在很深的資料夾裡 <code>python -m venv</code> 會卡在 <code>ensurepip</code>，同樣是路徑長度造成的，換到短路徑就好。</p>
         <h3>10.3 PowerShell 的 JMESPath 跳脫</h3>
         <p><code>--query</code> 裡的欄位名稱有連字號（例如 <code>default-route-table-id</code>）就必須加引號。PowerShell 要寫成 <code>"data.\`"default-route-table-id\`""</code>，bash 則是 <code>'data."default-route-table-id"'</code>。沒跳脫會看到 <code>Unknown token '-'</code>。</p>
+        <p>這個反斜線加反引號的寫法，我只在 Windows PowerShell 5.1 上實測過。PowerShell 7.3 之後改了傳給外部程式的引數處理方式，這寫法可能失效，到時請改用單引號版本；7.x 我沒有環境，沒測。</p>
         <h3>10.4 <code>--route-rules file://</code> 的路徑</h3>
         <p>Windows 路徑要用正斜線：<code>file://C:/路徑/routes.json</code>，用反斜線會被當成多餘的參數。</p>
         <h3>10.5 睡眠與長時間執行</h3>
         <p>筆電睡眠或關機腳本就會停。重新啟動腳本沒有副作用，因為它每次嘗試前會先檢查同名主機。</p>
-        <h3>10.6 其他常見問題</h3>
-        <table>
-          <thead><tr><th>症狀</th><th>原因</th></tr></thead>
-          <tbody>
-            <tr><td>一直 <code>LimitExceeded</code></td><td>要求的 OCPU / 記憶體超過配額，調成 2 / 12</td></tr>
-            <tr><td>一直 429</td><td>請求太密，或 CLI 內建重試和腳本迴圈疊加</td></tr>
-            <tr><td>主機建好卻登不進去</td><td>把 API 公鑰當成 SSH 公鑰</td></tr>
-            <tr><td>CLI 驗證失敗</td><td>私鑰貼上後 PEM 頭尾或換行遺失，對照 fingerprint</td></tr>
-          </tbody>
-        </table>
+        <h3>10.6 腳本的結果檔 IP 是空的</h3>
+        <p>前面第 5 節提過：我實際跑的版本用 python 解析主機 ID，解析失敗，<code>result.txt</code> 的 <code>instance</code> 與 <code>public_ip</code> 是空的。主機已經建好，我另外用 <code>oci compute instance list</code> 和 <code>list-vnics</code> 查到 IP。</p>
 
         <h2>我學到的</h2>
         <ul>
-          <li>「搶不到」大多是 region 當下沒容量，不是自己設定錯，先看錯誤訊息是 <code>Out of host capacity</code> 還是 <code>LimitExceeded</code>。</li>
-          <li>重試腳本最重要的是：關掉內建重試、固定間隔、每次先查同名主機。</li>
-          <li>Windows 上裝 Python CLI 工具，路徑越短越安全。</li>
-          <li>免費額度以官方文件為準，社群說法（例如升級 PAYG）聽聽就好，沒有證據不要當成事實。</li>
+          <li>這次我的 A1 是在第 24 次嘗試搶到，前面 23 次都被腳本判定為可重試錯誤，沒有出現會讓腳本停止的錯誤。我沒有存下原始錯誤訊息，所以不能保證每一次的原因都是沒容量。</li>
+          <li>在 Windows 上裝 <code>oci-cli</code>，路徑要夠短，我最後是裝在 <code>C:\o</code> 才成功。</li>
+          <li>升級 Pay As You Go 的時間點和搶到很接近，但我沒有確認升級是否生效，所以我不知道兩者有沒有關係。</li>
+          <li>免費額度以 Oracle 官方文件為準，我只讀了其中一頁，計費細節沒有逐項查證。</li>
         </ul>
-        <p>參考資料：<a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Oracle Always Free Resources</a>；另有一篇中文教學（<a href="https://kelvinwang.info/zh-hant/blog/oracle-cloud-free-arm-claude-code/" target="_blank" rel="noopener">Kelvin Wang</a>）提供了整體流程的參考，腳本是我依描述自行實作的。</p>
+        <p>參考資料：<a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Oracle Always Free Resources</a>。這個做法的起點是 <a href="https://kelvinwang.info/zh-hant/blog/oracle-cloud-free-arm-claude-code/" target="_blank" rel="noopener">Kelvin Wang 的這篇文章</a>；本文的指令、腳本與踩坑，是我在自己的機器上實際執行與修改後的紀錄，沒有引用他的內文。</p>
       </article>
     </main>
 

@@ -248,6 +248,7 @@ dialog .foot { padding: 10px 20px; border-top: 1px solid var(--line); font: 12.5
 }
 @media (max-width: 760px) {
   .nav a.sec { display: none; }
+  .nav a.sec.keep { display: inline-block; }
   .section { padding-block: 56px; }
   .panel, .card { padding: 20px; }
   .sh .hint { display: none; }
