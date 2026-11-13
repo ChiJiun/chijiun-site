@@ -1,6 +1,10 @@
 # 貼進 VM 的 /etc/caddy/Caddyfile（與 chijiun.com 的區塊並列），然後 sudo systemctl reload caddy。
 # 兩個服務都只聽 127.0.0.1，外面只能經過 Caddy 進來。
 # tls internal 與 chijiun.com 一致（Cloudflare SSL 模式 Full）。
+#
+# 注意：這是最精簡的範本。實際部署在 VM 上的版本還多了兩件事（比照 stats.chijiun.com 的區塊）：
+#   1. @not_cloudflare：只允許 Cloudflare 的 IP 直連，其餘 abort（IP 範圍複製自 stats 區塊）。
+#   2. basic_auth 的帳號密碼在 VM 的 /opt/chijiun-monitor-accounts.txt（root 才能讀），不在 git 裡。
 
 monitor.chijiun.com {
 	tls internal
