@@ -68,8 +68,8 @@
 
         <h2 id="payg">PAYG（Pay As You Go）</h2>
         <ul>
-          <li><strong>Free Trial</strong>：$300 抵用額度、最多 30 天。註冊需要手機與信用卡，官方寫升級前不會扣款。</li>
-          <li><strong>Always Free</strong>：不會到期，試用結束後已建好的資源不中斷。試用結束時若 A1 超過 2 OCPU / 12 GB，會被停用，30 天後刪除，除非升級。</li>
+          <li><strong>Free Trial</strong>：$300 抵用額度、最多 30 天。多數使用者註冊時需要手機與信用卡，官方寫升級前不會扣款。</li>
+          <li><strong>Always Free</strong>：不會到期，試用結束後已建好的資源不中斷。試用結束時若 A1 超過 2 OCPU / 12 GB，全部 A1 會被停用，30 天後刪除，除非升級。</li>
           <li><strong>PAYG</strong>：付費帳號、無承諾期；Always Free 資源仍然免費，超出額度的部分才計費。</li>
         </ul>
         <p><strong>一定要升級嗎？</strong>社群上常有人說，一定要先升級成 PAYG 才申請得到這台免費主機。這是社群的說法：官方文件沒有寫這個要求，也沒有寫升級會提高成功率。官方寫的是：遇到 <code>out of host capacity</code> 錯誤，代表 home region 暫時缺少 Always Free 的 shape，可以換 Availability Domain、稍後再試，或升級 PAYG 以使用更多種運算資源。我在重試期間升級了，但沒確認生效時間，無法驗證這個說法。</p>
@@ -166,10 +166,10 @@ df -h /     # 約 48 GB</code></pre>
         <p>網站是純靜態檔案，我用 Caddy 提供。</p>
 
         <h4 id="step-6-1">6.1 開放 80 與 443</h4>
-        <p>要放行兩層：Security List 與 Ubuntu 映像檔自己的 iptables。Security List 的 <code>update</code> 是整份取代，要先取出現有規則、加上新的、再整份送回：</p>
+        <p>要放行兩層：Security List 與 Ubuntu 映像檔自己的 iptables。Security List 的 <code>update</code> 是整份取代，要先取出現有規則、加上新的、再整份送回（在本機 PowerShell 做，沿用步驟 2 的 <code>$vcn</code>）：</p>
 <pre><code>$sl = oci network vcn get --vcn-id $vcn --query "data.\`"default-security-list-id\`"" --raw-output
 oci network security-list get --security-list-id $sl --query "data.\`"ingress-security-rules\`"" &gt; ingress-backup.json
-# 把現有規則加上 80、443，存成 ingress-new.json（UTF-8，不要有 BOM）
+# 打開 ingress-backup.json，把它的內容加上下面兩條 80、443 規則，另存成 ingress-new.json（UTF-8，不要有 BOM）
 oci network security-list update --security-list-id $sl `
   --ingress-security-rules "file://C:/路徑/ingress-new.json" --force</code></pre>
 <pre><code>{"protocol":"6","source":"0.0.0.0/0","source-type":"CIDR_BLOCK","is-stateless":false,
@@ -188,6 +188,7 @@ sudo apt-get update &amp;&amp; sudo apt-get install -y caddy
 
 sudo mkdir -p /var/www/chijiun &amp;&amp; sudo chown ubuntu:ubuntu /var/www/chijiun
 git clone https://github.com/&lt;帳號&gt;/&lt;repo&gt;.git /var/www/chijiun</code></pre>
+        <p>這個 repo 必須是公開的：clone 和之後的 <code>git pull</code> 都沒有帶認證。</p>
         <p><code>/etc/caddy/Caddyfile</code>，先只聽 80，用 IP 測試（<code>curl -I http://&lt;VM_IP&gt;/</code> 應回 200）：</p>
 <pre><code>(site) {
 	root * /var/www/chijiun/site

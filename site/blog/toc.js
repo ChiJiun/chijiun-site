@@ -1,7 +1,7 @@
 /* 文章目錄：依文章裡有 id 的 h1～h6 自動產生，並保留標題層級的父子關係。
    - h1 是文章標題，h2 是它的章節，h3 是章節底下的小節，以此類推；跳級（例如 h2 直接接 h4）時，掛在最近的上一層。
    - 有子層級的項目前面有 ▸ 按鈕，可以個別展開或收合；捲動時，目前所在章節的整條路徑會自動展開並標示。
-   - 寬螢幕（>= 1300px）固定在文章右側；窄螢幕變成右下角的「目錄」按鈕，點開是浮動面板。 */
+   - 寬螢幕（>= 1360px）固定在文章右側；窄螢幕變成右下角的「目錄」按鈕，點開是浮動面板。 */
 (() => {
   const post = document.querySelector('.post');
   if (!post) return;
@@ -114,6 +114,8 @@
       if (n.head.getBoundingClientRect().top <= 130) found = n;
       else break;
     }
+    // 捲到最底時，最後幾節的標題可能到不了判斷線，直接以最後一節為目前位置
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) found = nodes[nodes.length - 1];
     if (found === current && nav.dataset.ready) return;
     current = found;
     nav.dataset.ready = '1';
@@ -128,7 +130,10 @@
   };
   btn.addEventListener('click', () => setOpen(!nav.classList.contains('open')));
   panel.addEventListener('click', (e) => {
-    if (e.target.closest('a')) setOpen(false);
+    if (e.target.closest('a')) {
+      if (nav.classList.contains('open')) btn.focus({ preventScroll: true });
+      setOpen(false);
+    }
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && nav.classList.contains('open')) { setOpen(false); btn.focus(); }
