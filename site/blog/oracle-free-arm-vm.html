@@ -14,8 +14,8 @@
     <script>
       try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
     </script>
-    <link rel="stylesheet" href="../styles.css" />
-    <link rel="stylesheet" href="blog.css" />
+    <link rel="stylesheet" href="../styles.css?v=d7fa51ca" />
+    <link rel="stylesheet" href="blog.css?v=adeb6882" />
   </head>
   <body class="blog">
     <a class="skip" href="#main">跳到主要內容</a>
@@ -246,7 +246,7 @@ sudo systemctl reload caddy</code></pre>
 
     <footer class="footer wrap">© 2026 翁祺鈞 Chi-Jiun Wong</footer>
 
-    <script src="toc.js" defer></script>
+    <script src="toc.js?v=29d0b14b" defer></script>
     <script>
       document.getElementById('theme').addEventListener('click', () => {
         const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';

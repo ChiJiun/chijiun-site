@@ -9,6 +9,7 @@
 - 網站由主機上的 Caddy 提供，網域的 DNS 在 Cloudflare，指向這台主機。
 - 主機上的 `/var/www/chijiun` 是這個 repo 的複本，由 systemd timer 每 2 分鐘執行一次 `git pull --ff-only`，所以 push 到 `main` 之後約 2 分鐘內會自動更新。
 - 完整的申請與部署流程，寫在文章 `site/blog/oracle-free-arm-vm.html`（對外網址 `/blog/oracle-free-arm-vm.html`）。
+- Cloudflare 會快取靜態檔（瀏覽器快取 4 小時），所以 HTML 引用 CSS／JS 時帶有內容雜湊的版本參數（`styles.css?v=xxxxxxxx`）。改了 `site/` 底下的 `.css`／`.js` 之後，執行 `python scripts/version-assets.py` 更新版本再 push；`--check` 只檢查不改檔。
 - 原本的 GitHub Pages 已停用，`.github/workflows/deploy.yml` 只保留手動觸發（`workflow_dispatch`），push 不會再觸發它。
 
 ## 結構
@@ -26,7 +27,7 @@
   - `index.html`：文章列表。新增文章時，在 `post-list` 裡複製一個 `<li class="post-item">`。
   - `oracle-free-arm-vm.html`：文章本體，以它為範本複製即可；文章裡不要放 OCID、IP、信箱、金鑰。
   - `blog.css`：文章專用樣式，配色與 nav、footer 沿用 `site/styles.css`。
-  - `toc.js`：文章目錄。依文章裡有 `id` 的 `h1`～`h6` 自動產生，並保留標題層級的父子關係（`h1` 是文章標題、`h2` 是章節、`h3` 是小節，跳級時掛在最近的上一層）；有子層級的項目可以個別展開或收合，捲動時會自動展開目前所在章節。寬螢幕（1300px 以上）固定在右側，窄螢幕是右下角的「目錄」按鈕。新文章只要幫標題加上 `id`，並載入 `<script src="toc.js" defer>`。
+  - `toc.js`：文章目錄。依文章裡有 `id` 的 `h1`～`h6` 自動產生，並保留標題層級的父子關係（`h1` 是文章標題、`h2` 是章節、`h3` 是小節，跳級時掛在最近的上一層）；有子層級的項目可以個別展開或收合，捲動時會自動展開目前所在章節。寬螢幕（1360px 以上）固定在右側，窄螢幕是右下角的「目錄」按鈕。新文章只要幫標題加上 `id`，並載入 `<script src="toc.js" defer>`。
 - `site/404.html`：找不到的網址導回首頁。
 
 ## 本機預覽

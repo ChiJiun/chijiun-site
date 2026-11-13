@@ -1,4 +1,4 @@
-import { me, interests, research, experience, projects, more, skills, cats, contact, repoUrl } from './data.js';
+import { me, interests, research, experience, projects, more, skills, cats, contact, repoUrl } from './data.js?v=54733223';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
