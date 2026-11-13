@@ -49,3 +49,7 @@ body.blog .nav a.cur { color: var(--fg); background: var(--line); }
   .blog-wrap { padding-top: 100px; }
   .post pre { font-size: 13px; }
 }
+
+details.callout summary { cursor: pointer; }
+details.callout[open] summary { margin-bottom: 8px; }
+details.callout ol { margin-top: 8px; }
