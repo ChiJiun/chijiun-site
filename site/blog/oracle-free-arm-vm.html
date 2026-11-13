@@ -249,7 +249,7 @@ oci iam availability-domain list --compartment-id $T --query "data[].name"</code
         <p>子網路 OCID 就是上一節建出來的那個。另外要準備一把 SSH 金鑰：公鑰在建立主機時交給 Oracle，之後登入就用對應的私鑰。我用的是自己電腦上原本就有的一把。</p>
 
         <h2>步驟 4：重複申請，直到成功</h2>
-        <p>核心動作只有一個：對 Oracle 送出「建立主機」的請求。成功就結束，失敗就等一下再送。我用一支 bash 腳本重複這件事，這裡不貼完整腳本，只列出建立主機用的指令（識別碼換成你自己的值）：</p>
+        <p>核心動作只有一個：對 Oracle 送出「建立主機」的請求。成功就結束，失敗就等一下再送。我用一支 bash 腳本（在 Windows 上用 Git Bash 執行）重複這件事，這裡不貼完整腳本，只列出建立主機用的指令（bash 語法，和前面步驟的 PowerShell 不同；識別碼換成你自己的值）：</p>
 <pre><code>oci compute instance launch \
   --compartment-id &lt;TENANCY_OCID&gt; \
   --availability-domain &lt;AD_NAME&gt; \
@@ -264,7 +264,7 @@ oci iam availability-domain list --compartment-id $T --query "data[].name"</code
   --wait-for-state RUNNING</code></pre>
         <p>我的腳本把這個指令放在迴圈裡，每次失敗後等 60 秒再送；送出前會先用 <code>--display-name</code> 的名字查有沒有已經存在的主機，有就停止；每次嘗試的時間與結果會寫進 log。</p>
         <div class="callout warn">
-          <p>我實際跑的版本，成功後用 python 解析主機 ID，結果解析失敗，結果檔裡的主機 ID 與公開 IP 是空的。主機其實已經建好了，我是另外用 CLI 查到 IP。</p>
+          <p>我實際跑的版本，成功後會用 python 從回應裡解析主機 ID，結果解析失敗，所以腳本寫在 log 與結果檔（腳本另外存主機 ID 與 IP 的檔案）裡的主機 ID 與公開 IP 都是空的。主機其實已經建好了，我是另外用 CLI 查到 IP。</p>
         </div>
         <p>成功與否，最後都要用 <code>oci compute instance list</code> 實際確認。</p>
 
@@ -273,7 +273,7 @@ oci iam availability-domain list --compartment-id $T --query "data[].name"</code
         <p>log 長這樣，沒搶到時會一直重複這兩種訊息（log 只記錄腳本的判定，我沒有把 CLI 的原始錯誤訊息存下來，所以我無法逐次確認每次的原因）：</p>
 <pre><code>[時間] 第 N 次嘗試，AD=&lt;AD_NAME&gt;，2 OCPU / 12 GB
 [時間] 可重試錯誤，60 秒後再試</code></pre>
-        <p>成功的那一次，log 會寫下「成功」以及主機 ID。</p>
+        <p>成功的那一次，log 會寫下「成功」；我這次因為前面說的解析問題，那一行後面的主機 ID 與 IP 是空的，所以最後仍要用 <code>oci compute instance list</code> 確認。</p>
 
         <h2>步驟 6：搶到之後，確認主機可用</h2>
         <ol>
@@ -327,7 +327,7 @@ df -h /         # 約 48 GB</code></pre></li>
         <h3>坑 4：<code>--route-rules file://</code> 的路徑</h3>
         <p>Windows 路徑要用正斜線：<code>file://C:/路徑/routes.json</code>，用反斜線會被當成多餘的參數。</p>
         <h3>坑 5：腳本的結果檔 IP 是空的</h3>
-        <p>前面「步驟 4」提過：我實際跑的版本用 python 解析主機 ID，解析失敗，結果檔的主機 ID 與公開 IP 是空的。主機已經建好，我另外用 <code>oci compute instance list</code> 和 <code>list-vnics</code> 查到 IP。</p>
+        <p>前面「步驟 4」提過：我實際跑的版本用 python 解析主機 ID，解析失敗，log 與結果檔裡的主機 ID 與公開 IP 都是空的。主機已經建好，我另外用 <code>oci compute instance list</code> 和 <code>list-vnics</code> 查到 IP。</p>
 
         <h2>我學到的</h2>
         <ul>
