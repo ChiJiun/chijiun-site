@@ -53,3 +53,31 @@ body.blog .nav a.cur { color: var(--fg); background: var(--line); }
 details.callout summary { cursor: pointer; }
 details.callout[open] summary { margin-bottom: 8px; }
 details.callout ol { margin-top: 8px; }
+
+/* ---------- 文章目錄（toc.js 產生）---------- */
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+.post h2[id], .post h3[id], .callout[id] { scroll-margin-top: 92px; }
+
+.toc { position: fixed; z-index: 4; }
+.toc-toggle { position: fixed; right: 16px; bottom: 18px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--solid); color: var(--fg); font: 14px var(--mono); cursor: pointer; box-shadow: 0 6px 22px rgba(0, 0, 0, .28); }
+.toc-toggle:hover, .toc-toggle[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.toc-panel { position: fixed; right: 16px; bottom: 68px; width: min(340px, calc(100vw - 32px)); max-height: 62vh; overflow-y: auto; padding: 14px 8px 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--solid); box-shadow: 0 10px 34px rgba(0, 0, 0, .34); display: none; overscroll-behavior: contain; }
+.toc.open .toc-panel { display: block; }
+.toc-title { margin: 0 0 6px 12px; font: 12px var(--mono); letter-spacing: .08em; color: var(--dim); }
+.toc ol { margin: 0; padding: 0; list-style: none; }
+.toc a { display: block; padding: 5px 10px; border-left: 2px solid transparent; border-radius: 0 6px 6px 0; color: var(--dim); font-size: 13.5px; line-height: 1.45; text-decoration: none; }
+.toc a:hover { color: var(--fg); background: color-mix(in srgb, var(--line) 55%, transparent); }
+.toc li.active > a { border-left-color: var(--accent); color: var(--accent); font-weight: 700; }
+.toc .toc-h2.open > a { color: var(--fg); }
+.toc .toc-h2.open > a[aria-current] { color: var(--accent); }
+.toc-sub { display: none; margin: 2px 0 6px 10px; }
+.toc-h2.open > .toc-sub { display: block; }
+.toc-sub a { font-size: 12.5px; padding: 3px 10px; }
+
+/* 寬螢幕：固定在文章右側，不需要按按鈕 */
+@media (min-width: 1300px) {
+  .toc-toggle { display: none; }
+  .toc-panel { display: block; left: calc(50% + 390px + 28px); right: auto; top: 104px; bottom: auto; width: 236px; max-height: calc(100vh - 140px); padding: 4px 0; border: 0; border-left: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+  .toc-title { margin-left: 12px; }
+}
+@media print { .toc { display: none; } }

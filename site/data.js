@@ -206,5 +206,5 @@ export const skills = {
   g: { short: 'GCP', name: 'GCP VM / Linux', cat: 'infra', desc: '評分機器人長期運作的地方。', repo: 'StatsDiscordBot' },
   i: { short: 'Fb', name: 'Firebase / Render', cat: 'infra', desc: '探索平台的部署與 Google 登入。', repo: 'NCU_AI_Guidance' },
   v: { short: 'Vec', name: 'Qdrant', cat: 'infra', desc: '向量資料庫的監控。', repo: 'NCU_AI_Guidance' },
-  y: { short: 'CI', name: 'GitHub Actions', cat: 'infra', desc: 'CI 與 Secrets 管理；這個網站也是它部署的。', repo: 'chijiun.github.io' },
+  y: { short: 'CI', name: 'GitHub Actions', cat: 'infra', desc: 'CI 與 Secrets 管理。', repo: 'chijiun-site' },
 };

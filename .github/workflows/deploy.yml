@@ -1,8 +1,7 @@
 name: Deploy to GitHub Pages
 
+# 網站已改由 VM 提供，GitHub Pages 已停用；只保留手動觸發，避免每次 push 都失敗。
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

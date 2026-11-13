@@ -461,7 +461,7 @@ if (contactOn) {
     const d = new FormData(form);
     if (d.get('botcheck')) return;
     const name = d.get('name').trim(), email = d.get('email').trim(), message = d.get('message').trim();
-    const subject = `[chijiun.github.io] ${name} 的來信`;
+    const subject = `[chijiun.com] ${name} 的來信`;
     if (!contact.accessKey) {
       location.href = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${message}\n\n— ${name} <${email}>`)}`;
       note.textContent = '已經幫你開啟郵件程式，按下寄出就可以了。';
