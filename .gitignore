@@ -1,1 +1,5 @@
 .DS_Store
+
+# 本機用的搶主機腳本與公鑰，不要提交
+grab.sh
+ssh.pub
