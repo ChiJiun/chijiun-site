@@ -40,12 +40,16 @@ else
   rm -rf "$tmp"
 fi
 # 預設會聽所有網卡的 19999；改成只聽 localhost，由 Caddy 加上密碼後轉發
-if [ ! -e /etc/netdata/netdata.conf ]; then
-  mkdir -p /etc/netdata
-  printf '[web]\n\tbind to = 127.0.0.1\n' > /etc/netdata/netdata.conf
-  systemctl restart netdata
-elif ! grep -Eq '^\s*bind to\s*=\s*(127\.0\.0\.1|localhost)' /etc/netdata/netdata.conf; then
-  echo "    警告：/etc/netdata/netdata.conf 已存在，請手動在 [web] 區段加上  bind to = 127.0.0.1  再 restart netdata" >&2
+#（kickstart 安裝後會建立一份只有註解的 netdata.conf，所以不能用「檔案不存在」來判斷）
+mkdir -p /etc/netdata
+touch /etc/netdata/netdata.conf
+if ! grep -Eq '^\s*bind to\s*=\s*(127\.0\.0\.1|localhost)' /etc/netdata/netdata.conf; then
+  if grep -Eq '^\s*\[web\]' /etc/netdata/netdata.conf; then
+    echo "    警告：netdata.conf 已有 [web] 區段，請手動加上  bind to = 127.0.0.1  再 restart netdata" >&2
+  else
+    printf '\n[web]\n\tbind to = 127.0.0.1\n' >> /etc/netdata/netdata.conf
+    systemctl restart netdata
+  fi
 fi
 
 echo "==> 4/5 回報用設定檔 /etc/chijiun-monitor.env"
