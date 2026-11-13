@@ -1,0 +1,2 @@
+# monitor/ 底下的檔案會在 Linux VM 上執行，一律用 LF，避免 Windows 的 autocrlf 讓 shell script、systemd unit 壞掉
+monitor/** text eol=lf

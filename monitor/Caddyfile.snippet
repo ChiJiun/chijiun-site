@@ -1,0 +1,19 @@
+# 貼進 VM 的 /etc/caddy/Caddyfile（與 chijiun.com 的區塊並列），然後 sudo systemctl reload caddy。
+# 兩個服務都只聽 127.0.0.1，外面只能經過 Caddy 進來。
+# tls internal 與 chijiun.com 一致（Cloudflare SSL 模式 Full）。
+
+monitor.chijiun.com {
+	tls internal
+	# Uptime Kuma 有自己的登入畫面
+	reverse_proxy 127.0.0.1:3001
+}
+
+netdata.chijiun.com {
+	tls internal
+	# Netdata 本身沒有登入，所以用 basic auth 擋住。
+	# 雜湊用 `caddy hash-password` 產生；把結果貼在下面，不要把密碼本身或雜湊提交進 git。
+	basic_auth {
+		chijiun <貼上 caddy hash-password 的輸出>
+	}
+	reverse_proxy 127.0.0.1:19999
+}

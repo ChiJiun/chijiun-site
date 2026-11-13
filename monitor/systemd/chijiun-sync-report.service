@@ -1,0 +1,14 @@
+[Unit]
+Description=回報網站部署同步狀態給 Uptime Kuma
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/chijiun-monitor.env
+ExecStart=/bin/bash /var/www/chijiun/monitor/bin/sync-report.sh
+DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes

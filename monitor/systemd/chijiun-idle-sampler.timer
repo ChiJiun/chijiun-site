@@ -1,0 +1,10 @@
+[Unit]
+Description=每分鐘取樣一次 CPU／記憶體／網路使用率
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

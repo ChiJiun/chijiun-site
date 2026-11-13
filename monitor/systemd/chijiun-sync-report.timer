@@ -1,0 +1,10 @@
+[Unit]
+Description=每 2 分鐘回報一次部署同步狀態
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

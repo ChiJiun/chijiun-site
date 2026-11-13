@@ -1,0 +1,16 @@
+[Unit]
+Description=Oracle 閒置回收風險取樣並回報 Uptime Kuma
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/chijiun-monitor.env
+ExecStart=/usr/bin/python3 /var/www/chijiun/monitor/bin/idle-sampler.py
+# 不用 root 執行；樣本存在 /var/lib/chijiun-monitor
+DynamicUser=yes
+StateDirectory=chijiun-monitor
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
