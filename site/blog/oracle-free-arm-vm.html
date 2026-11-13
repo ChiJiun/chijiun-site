@@ -35,21 +35,13 @@
       <article class="post">
         <header>
           <h1 id="top">免費雲端主機：Oracle Always Free ARM VM 的額度、PAYG、費用與完整部署流程</h1>
-          <div class="post-meta">2026-11-13 · 約 30 分鐘讀完</div>
+          <div class="post-meta">2026-11-13 · 約 20 分鐘讀完</div>
           <ul class="tags"><li>Oracle Cloud</li><li>雲端主機</li><li>ARM</li><li>Always Free</li><li>PAYG</li><li>雲端價格</li><li>部署</li></ul>
           <p class="lead">Oracle Cloud 提供一台長期免費的 ARM 雲端主機（2 核、12 GB 記憶體），但要拿到它沒那麼簡單：我花了約 42 分鐘、試了 24 次才成功。這篇整理它的免費額度、要不要升級 Pay As You Go（PAYG）、其他雲端同規格大概多少錢，再用我自己的實際過程，從申請一路寫到把個人網站放上去。</p>
         </header>
 
         <h2 id="intro">這篇在講什麼</h2>
-        <p>如果你想要一台可以 24 小時開著的 Linux 主機，拿來跑自己的小專案、機器人或實驗，又不想每個月付錢，Oracle Cloud 的 Always Free 是其中一個選擇。我這次實際把它申請下來，並且把過程整理成可以照著做的紀錄。</p>
-        <ul>
-          <li><strong>你會看到</strong>：什麼是雲端主機、Always Free 的額度、要不要升級 PAYG、其他雲端的正常費用、我怎麼用一支腳本重複申請，以及搶到之後怎麼把網站部署上去。</li>
-          <li><strong>你需要</strong>：一個 Oracle Cloud 帳號、會用一點命令列、一台能長時間開機的電腦。</li>
-          <li><strong>你不會看到</strong>：我的帳號識別碼、IP、信箱或金鑰，文中都用 <code>&lt;佔位符&gt;</code> 取代。</li>
-        </ul>
-        <div class="callout warn">
-          <p><strong>先講清楚：</strong>能不能搶到有運氣成分，沒有人能保證多久。文中的免費額度與升級規則來自 Oracle 官方文件，我只讀了下面列的幾頁，計費細節沒有逐項查證，實際以官方頁面為準。</p>
-        </div>
+        <p>文中的識別碼、IP 與金鑰都用 <code>&lt;佔位符&gt;</code> 取代。能不能搶到有運氣成分；免費額度與升級規則來自 Oracle 官方文件，實際以官方頁面為準。</p>
         <div class="callout" id="links">
           <p><strong>Oracle 官方連結</strong></p>
           <ul>
@@ -57,7 +49,6 @@
             <li><a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Always Free Resources</a>：免費額度明細</li>
             <li><a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier.htm" target="_blank" rel="noopener">Free Tier 說明文件</a>：試用、Always Free、升級成付費帳號</li>
             <li><a href="https://www.oracle.com/cloud/price-list/" target="_blank" rel="noopener">Oracle Cloud 價目表</a>與<a href="https://www.oracle.com/cloud/cost-estimator.html" target="_blank" rel="noopener">費用試算</a></li>
-            <li><a href="https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/launchinginstance.htm" target="_blank" rel="noopener">建立 Compute 主機</a>：官方的 Console 操作說明（我自己用 CLI，沒有照這頁做）</li>
           </ul>
         </div>
 
@@ -66,8 +57,6 @@
         <p>Oracle 的 Always Free 是在帳號內提供一小份固定額度，在額度內不收費。我這次要的是其中的 <strong>A1 ARM 主機</strong>：ARM 是手機和 Apple 晶片也在用的處理器架構，這份額度是 2 核（OCPU）、12 GB 記憶體，對個人用途來說相當寬裕。</p>
 
         <h2 id="free-tier-payg">免費額度與 Pay As You Go（PAYG）</h2>
-        <p>這一節的數字與規則都來自 Oracle 官方文件（連結在上面），我沒有逐項查證計費細節。</p>
-
         <h3 id="quota">Always Free 包含什麼</h3>
         <table>
           <thead><tr><th>資源</th><th>額度</th></tr></thead>
@@ -80,12 +69,12 @@
           </tbody>
         </table>
         <ul>
-          <li>7 天內 CPU 的第 95 百分位低於 20%，而且網路、記憶體（記憶體只看 A1）的使用率也低於 20%，主機可能被當成閒置回收。官方文字只明確寫 CPU 是第 95 百分位，網路與記憶體怎麼取樣，文件沒有細說。</li>
+          <li>7 天內 CPU 的第 95 百分位低於 20%，而且網路、記憶體（記憶體只看 A1）的使用率也低於 20%，主機可能被當成閒置回收。</li>
           <li>Reserved Public IP 是否免費，文件沒有載明，所以我沒建。</li>
           <li>免費規格可選的映像檔只有 Linux，沒有 Windows。</li>
         </ul>
         <div class="callout warn">
-          <p>我的帳號用 CLI 查到的 A1 配額上限遠大於免費額度（region 16 核 / 96 GB）。那是<strong>配額上限，不是免費額度</strong>，超過 2 OCPU / 12 GB 的部分可能計費，所以腳本預設就卡在 2 / 12。</p>
+          <p>我的帳號用 CLI 查到的 A1 配額上限是 16 核 / 96 GB，那是<strong>配額上限，不是免費額度</strong>，超過 2 OCPU / 12 GB 的部分可能計費，所以規格固定在 2 / 12。</p>
         </div>
 
         <h3 id="trial-vs-payg">Free Trial、Always Free、PAYG 的關係</h3>
@@ -100,36 +89,23 @@
         <ul>
           <li>註冊多半需要手機號碼與信用卡；官方寫信用卡在升級之前不會被扣款。</li>
           <li>試用結束時，如果 A1 主機的總量超過 Always Free 的 2 OCPU / 12 GB，官方寫這些 A1 主機會先被停用，30 天後刪除，除非升級。所以建議一開始就把規格固定在 2 / 12。</li>
-          <li>用試用抵用額度建立的付費資源，試用結束後會被回收，除非升級。</li>
         </ul>
 
         <h3 id="need-payg">一定要升級 PAYG 才能拿到免費主機嗎？</h3>
         <p>我讀到的官方 Free Tier 文件，<strong>沒有寫「要升級才能建立 Always Free 主機」</strong>，也沒有寫升級會讓申請成功的機率變高。</p>
         <ul>
           <li>網路上有人說要先升級。我自己也升級了，但時間點非常接近我搶到的時候，而且我沒有確認升級是什麼時候生效，所以我<strong>不能說升級有幫助，也不能說沒有</strong>。</li>
-          <li>要不要升級是你的決定。不升級的話，官方寫信用卡不會被扣款；升級之後，就要自己留意別開到超出免費額度的資源，超出的部分會計費。</li>
-          <li>如果你升級了，建議到 Billing 設預算警示。這是我的建議，我自己還沒有設定。</li>
+          <li>要不要升級是你的決定。升級之後要自己留意別開到超出免費額度的資源，超出的部分會計費。</li>
         </ul>
 
         <h3 id="how-upgrade">怎麼升級</h3>
-        <p>官方寫法：在 Console 頂端橫幅點 Upgrade 連結；如果沒看到，點左上角的 Oracle Cloud 標誌，到首頁右側欄找 Upgrade。官方說升級後你仍然能使用所有現有的雲端資源。我是在 Console 按升級、填付款資訊；升級要多久生效，我沒有記錄。官方另有一頁 Account Upgrade Overview 在講升級與信用卡預授權，我沒有讀。</p>
+        <p>官方寫法：在 Console 頂端橫幅點 Upgrade 連結；如果沒看到，點左上角的 Oracle Cloud 標誌，到首頁右側欄找 Upgrade。官方說升級後仍然能使用所有現有的雲端資源。我是在 Console 按升級並填付款資訊。</p>
 
         <h2 id="why-grab">為什麼要「搶」</h2>
-        <p>「搶」的意思是：向 Oracle 要求建立這台主機時，請求可能失敗，所以要不斷重試，直到某一次成功。一般的說法是免費額度的主機數量有限、同一區域容易沒有空位，但這是我聽來的說法，我沒有留下錯誤訊息可以驗證。</p>
-        <ul>
-          <li>我的腳本前 23 次都被判定為「可以稍後重試的錯誤」，第 24 次才成功。</li>
-          <li>我當時沒有把 CLI 回傳的原始錯誤訊息存下來，所以沒辦法逐次確認原因，只知道這些都不是設定錯誤。</li>
-          <li>手動在網頁上一直按「建立」也行，只是我選擇用腳本，因為腳本可以固定間隔、不間斷地重試。</li>
-        </ul>
+        <p>向 Oracle 要求建立這台主機時，請求可能失敗，所以要不斷重試，直到某一次成功，這就是「搶」。一般的說法是免費額度的主機有限、同一區域容易沒有空位，但我沒有留下錯誤訊息可以驗證。我的腳本前 23 次都被判定為「可稍後重試的錯誤」，第 24 次才成功。手動在網頁上反覆按「建立」也行，我選擇用腳本，因為它可以固定間隔、不間斷地重試。</p>
 
-        <h2 id="use-cases">搶到之後可以拿來做什麼</h2>
-        <p>我實際做的只有一件：<strong>把這個個人網站從 GitHub Pages 與 Cloudflare Workers 搬到這台主機上跑</strong>，做法寫在下面的「步驟 7」。下面其他的用途是我的想法，我還沒有實際跑過。</p>
-        <ul>
-          <li>跑小型的網站、API 或聊天機器人，讓它一直在線。（網站這項是我實際做的）</li>
-          <li>跑排程腳本，例如定時抓資料或通知。</li>
-          <li>當作自己的測試機，練習 Linux、Docker 或部署流程。</li>
-        </ul>
-        <p>要注意的限制：這台是 ARM 架構，只有 x86 版或只能在 Windows 上跑的程式不能直接用；也沒有 GPU，不適合跑大型模型。</p>
+        <h2 id="use-cases">搶到之後拿來做什麼</h2>
+        <p>我拿它來跑這個個人網站（見步驟 7）。要注意這台是 ARM 架構，只有 x86 版或只能在 Windows 上跑的程式不能直接用；也沒有 GPU，不適合跑大型模型。</p>
 
         <h2 id="result">結果先看</h2>
         <ul class="timeline">
@@ -143,12 +119,9 @@
             <tr><td>Region</td><td>東京（<code>ap-tokyo-1</code>），只有一個 Availability Domain</td></tr>
             <tr><td>Shape</td><td><code>VM.Standard.A1.Flex</code>，2 OCPU / 12 GB</td></tr>
             <tr><td>系統</td><td>Ubuntu 24.04 aarch64，開機磁碟約 48 GB 可用</td></tr>
-            <tr><td>搶到的方式</td><td>重試腳本，每輪約 1.5～2 分鐘（請求約 20 秒 + 查詢同名主機 + 等待 60 秒；24 次嘗試共花約 42 分鐘）</td></tr>
+            <tr><td>搶到的方式</td><td>重試腳本，每次失敗後等 60 秒；24 次嘗試共約 42 分鐘</td></tr>
           </tbody>
         </table>
-        <div class="callout">
-          <p>升級 Pay As You Go 後不久就搶到，但我沒有確認升級是否已經生效，所以<strong>不能說兩者有關</strong>。</p>
-        </div>
 
         <h2 id="overview">整個流程一眼看完</h2>
         <ol>
@@ -208,11 +181,11 @@
         </table>
         <h3 id="cost-calc">怎麼算的</h3>
         <ul>
-          <li><strong>Oracle</strong>：A1 隨用隨付（見 <a href="https://www.oracle.com/cloud/price-list/" target="_blank" rel="noopener">Oracle 價目表</a>）是每 OCPU 每小時 $0.01、每 GB 記憶體每小時 $0.0015、區塊儲存每 GB 每月 $0.0255。2 × 730 × $0.01 + 12 × 730 × $0.0015 + 50 × $0.0255 ≈ $29.02。價目資料裡 A1 另有一段免費區間，但它的數字（約 4 OCPU / 24 GB）和官方免費額度頁寫的 2 OCPU / 12 GB 對不上，原因我不確定，所以我不拿它當依據，免費額度一律以官方頁面為準。這份價格沒有標示區域，「全球同價」我沒有驗證。</li>
+          <li><strong>Oracle</strong>：A1 隨用隨付（見 <a href="https://www.oracle.com/cloud/price-list/" target="_blank" rel="noopener">Oracle 價目表</a>）是每 OCPU 每小時 $0.01、每 GB 記憶體每小時 $0.0015、區塊儲存每 GB 每月 $0.0255。2 × 730 × $0.01 + 12 × 730 × $0.0015 + 50 × $0.0255 ≈ $29.02。</li>
           <li><strong>AWS</strong>：東京、Linux、隨用隨付的每小時價乘以 730，再加 EBS gp3 每 GB 每月 $0.096 × 50 GB。另外公有 IPv4 位址每小時 $0.005（約每月 $3.65），上表沒有計入。其他服務商的公有 IP、快照、備份等附加費用，我也都沒有計入。</li>
           <li><strong>Google Cloud</strong>：T2A 在官方區域選單裡沒有東京，所以用新加坡；T2A 不支援自訂機型，沒辦法湊成 12 GB。磁碟以 Balanced 持久碟每月 $0.11/GB 估算。</li>
           <li><strong>Azure</strong>：日本東部、Linux 的每小時價乘以 730，再加 64 GiB 的 Standard SSD（50 GB 會被往上取整到這一級）每月約 $4.80。換成 Premium SSD 約 $11.74，每月會多約 $7。</li>
-          <li><strong>Hetzner</strong>：這兩款是歐洲機房，沒有亞洲地點，我查到的頁面也顯示它們暫時無法購買，所以只能當價位參考。</li>
+          <li><strong>Hetzner</strong>：這兩款是歐洲機房，沒有亞洲地點，我查到的頁面也顯示它們暫時無法購買，所以只能當價位參考。這一列是歐元、不含 VAT，不能和其他列直接比較。這些都是公開牌價，不構成購買建議。</li>
         </ul>
         <h3 id="cost-egress">出站流量（我覺得最容易被忽略）</h3>
         <p>Oracle 官方免費額度頁寫每月 10 TB 出站流量免費，這個數字在這張表裡是最大的差別。其他三家的牌價（我只列單價，不算總額，因為分級與目的地不同）：</p>
@@ -222,14 +195,6 @@
           <li>Google Cloud：新加坡或東京出站到亞洲約每 GB $0.11～$0.12；官方頁上我沒看到免費額度，標為「查不到」。</li>
         </ul>
         <p>所以如果你的主機會有大量對外流量，費用差距會比機器本身大得多。</p>
-        <h3 id="cost-unknown">我查不到或不確定的部分</h3>
-        <ul>
-          <li>Scaleway 等其他業者：官方價目頁讀不到，我沒有寫進來。</li>
-          <li>Hetzner 超額流量的單價，頁面文字看起來有誤，我沒有引用。</li>
-          <li>表裡 Hetzner 是歐元（且不含 VAT），其他是美元，我沒有換算，所以 Hetzner 那兩列不能和其他列直接比較。</li>
-          <li>這些是公開牌價，不構成任何購買建議。</li>
-        </ul>
-
         <h2 id="step-1">步驟 1：準備 OCI CLI 與 API 金鑰</h2>
         <h3 id="step-1-1">1.1 建立 API 金鑰</h3>
         <ol>
@@ -260,7 +225,7 @@ C:\o\Scripts\oci.exe --version</code></pre>
 
         <h3 id="step-1-4">1.4 查 A1 配額</h3>
 <pre><code>oci limits value list --compartment-id &lt;TENANCY_OCID&gt; --service-name compute --all --query "data[?contains(name,'standard-a1')]"</code></pre>
-        <p>我的帳號查到的上限遠大於免費額度（region 16 核 / 96 GB），但那是配額上限，不是免費額度，所以後面的腳本把規格固定在 2 OCPU / 12 GB。</p>
+        <p>查到的是配額上限，不是免費額度；規格一律固定在 2 OCPU / 12 GB（見前面的警告）。</p>
 
         <h2 id="step-2">步驟 2：建網路</h2>
         <p>主機需要 VCN、Internet Gateway、路由和公開子網路。下面是 PowerShell 版本，全部建在 root compartment。官方的免費額度頁只列了 VCN 的數量上限，沒有明說這些網路資源收不收費，建議建完之後到 Billing 自己確認。</p>
@@ -314,17 +279,13 @@ oci iam availability-domain list --compartment-id $T --query "data[].name"</code
   --ssh-authorized-keys-file &lt;SSH 公鑰檔&gt; \
   --wait-for-state RUNNING</code></pre>
         <p>我的腳本把這個指令放在迴圈裡，每次失敗後等 60 秒再送；送出前會先用 <code>--display-name</code> 的名字查有沒有已經存在的主機，有就停止；每次嘗試的時間與結果會寫進 log。</p>
-        <div class="callout warn">
-          <p>我實際跑的版本，成功後會用 python 從回應裡解析主機 ID，結果解析失敗，所以腳本寫在 log 與結果檔（腳本另外存主機 ID 與 IP 的檔案）裡的主機 ID 與公開 IP 都是空的。主機其實已經建好了，我是另外用 CLI 查到 IP。</p>
-        </div>
         <p>成功與否，最後都要用 <code>oci compute instance list</code> 實際確認。</p>
 
         <h2 id="step-5">步驟 5：讓它在背景跑，並確認狀態</h2>
-        <p>這支腳本需要一直開著，電腦不能睡眠。我是在 Windows 上用 Git Bash 執行，並讓它在背景運作，另外用指令查它的 log。</p>
-        <p>log 長這樣，沒搶到時會一直重複這兩種訊息（log 只記錄腳本的判定，我沒有把 CLI 的原始錯誤訊息存下來，所以我無法逐次確認每次的原因）：</p>
+        <p>腳本需要一直開著，電腦不能睡眠。我在 Windows 上用 Git Bash 執行並放在背景，另外查它的 log。沒搶到時，log 會一直重複這兩種訊息：</p>
 <pre><code>[時間] 第 N 次嘗試，AD=&lt;AD_NAME&gt;，2 OCPU / 12 GB
 [時間] 可重試錯誤，60 秒後再試</code></pre>
-        <p>成功的那一次，log 會寫下「成功」；我這次因為前面說的解析問題，那一行後面的主機 ID 與 IP 是空的，所以最後仍要用 <code>oci compute instance list</code> 確認。</p>
+        <p>成功時 log 會寫「成功」。我這次那一行後面的主機 ID 與 IP 是空的（見坑 4），所以最後仍要用 <code>oci compute instance list</code> 確認。</p>
 
         <h2 id="step-6">步驟 6：搶到之後，確認主機可用</h2>
         <ol>
@@ -336,7 +297,6 @@ oci iam availability-domain list --compartment-id $T --query "data[].name"</code
 free -h         # 約 11 GiB 可用
 df -h /         # 約 48 GB</code></pre></li>
         </ol>
-        <p>我沒有建 Reserved IP（固定 IP）。我拿到的是系統自動配的臨時 IP，它重開機後會不會變，我沒有測；官方免費額度頁沒有寫到 Reserved IP，所以我沒有建；如果你需要固定 IP，請先查 Oracle 的定價頁。</p>
 
         <h2 id="amd">加碼：順便開一台 AMD 小主機</h2>
         <p>AMD 小主機是獨立額度，我只試了一次就開成功（一次的結果，不代表一定容易）。但它是 x86、只有 1 GB 記憶體，跟 ARM 的差異如下：</p>
@@ -418,7 +378,6 @@ sudo systemctl reload caddy</code></pre>
         <p>在切換網域之前，先從外面用 IP 確認網站正常：</p>
 <pre><code>curl -I http://&lt;VM_IP&gt;/                 # 200，Server: Caddy
 curl -I http://&lt;VM_IP&gt;/不存在的路徑       # 404，內容是自訂的 404 頁</code></pre>
-        <p>我實際測到首頁、文章頁都是 200，不存在的路徑是 404，回應有 gzip。</p>
 
         <h3 id="step-7-5">7.5 把網域改指向主機（以 Cloudflare 為例）</h3>
         <p>我的網域放在 Cloudflare，原本由 Cloudflare Workers 提供網站，<code>www</code> 則指向 GitHub Pages。切換的順序是：</p>
@@ -433,60 +392,27 @@ curl -I http://&lt;VM_IP&gt;/不存在的路徑       # 404，內容是自訂的
           <li>在 DNS 新增一筆 <code>A</code> 記錄：名稱 <code>@</code>，內容是主機的 IP，開啟橘雲（Proxy）。</li>
           <li>把 <code>www</code> 那筆 <code>CNAME</code> 的目標，從舊的 GitHub Pages 網址改成網域本身。</li>
         </ol>
-        <p>完成後，網域根目錄和 <code>www</code> 都回 200，內容是最新版。我另外在主機上用 <code>ss</code> 看到有 Cloudflare 的 IP 連到 443，確認流量真的是打到這台主機，不是還在舊地方。同一個網域底下我沒動的其他子網域，之後也都還正常回應。</p>
+        <p>完成後，網域根目錄和 <code>www</code> 都回 200。要確認流量真的打到這台主機，可以在主機上用 <code>ss</code> 看有沒有 Cloudflare 的 IP 連到 443。</p>
 
         <h3 id="step-7-6">7.6 我還沒做的</h3>
         <ul>
           <li>把 <code>tls internal</code> 換成 Let's Encrypt 的正式憑證，並把 Cloudflare 的 SSL/TLS 改成 Full (strict)。目前 Cloudflare 到主機之間的加密有效，但憑證不會被驗證。</li>
           <li>固定 IP（Reserved IP）。主機現在用的是系統自動配的臨時 IP，我沒有測過它重開機後會不會變，所以<strong>目前不要停用或刪除這台主機</strong>。</li>
-          <li>觀察網站長期跑在上面，會不會觸發前面提到的閒置回收。我才剛切過來，沒有經驗可以分享。</li>
-        </ul>
-
-        <h2 id="resources">我實際開的資源，與官方文件寫的限制</h2>
-        <ul>
-          <li><strong>我實際開的</strong>：一台 A1（2 OCPU / 12 GB、50 GB 磁碟）加一台 AMD 小主機（50 GB 磁碟），磁碟合計 100 GB，沒有超過官方文件寫的 200 GB。</li>
-          <li><strong>官方文件寫的閒置回收規則</strong>：Always Free 主機若 7 天內 CPU 的第 95 百分位低於 20%，而且網路、記憶體（記憶體只看 A1）使用率也低於 20%，可能被回收。我才剛搶到，還沒有觀察到實際會不會被回收，所以這部分我沒有經驗可以分享。</li>
-          <li><strong>我沒有做的</strong>：Reserved IP（文件沒說免不免費）、負載平衡器、其他額外資源。</li>
         </ul>
 
         <h2 id="pitfalls">我踩到的坑</h2>
-        <h3 id="pit-1">坑 1：Windows 路徑長度上限（最大的一個）</h3>
-        <p><code>pip install oci-cli</code> 失敗了兩次，錯誤是找不到檔案，並提示系統沒有啟用長路徑。原因是 <code>oci-cli</code> 內建了幾千個說明檔，有些檔名超長，放在 <code>C:\Users\&lt;你&gt;\...</code> 這種深路徑底下，完整路徑會超過 Windows 預設的 260 字元。</p>
-        <ul>
-          <li>虛擬環境放在 <code>Temp</code> 底下、或 <code>C:\Users\&lt;你&gt;\ov</code>，還是失敗。</li>
-          <li>縮到 <code>C:\o</code> 才成功。</li>
-          <li>另一個做法是啟用 Windows 長路徑，但那是系統設定，我選擇不動它。用 WSL 或 Linux 機器也能繞過這個問題。</li>
-        </ul>
-        <h3 id="pit-2">坑 2：虛擬環境建不起來</h3>
-        <p>在很深的資料夾裡 <code>python -m venv</code> 會卡在 <code>ensurepip</code>，同樣是路徑長度造成的，換到短路徑就好。</p>
-        <h3 id="pit-3">坑 3：PowerShell 的 JMESPath 跳脫</h3>
+        <h3 id="pit-1">坑 1：Windows 路徑長度上限</h3>
+        <p><code>pip install oci-cli</code> 失敗了兩次，錯誤是找不到檔案並提示沒有啟用長路徑；在很深的資料夾裡 <code>python -m venv</code> 也會卡在 <code>ensurepip</code>。原因是 <code>oci-cli</code> 內建大量說明檔、檔名很長，放在 <code>C:\Users\&lt;你&gt;\...</code> 這種深路徑底下，完整路徑會超過 Windows 預設的 260 字元。虛擬環境放在 <code>Temp</code> 或 <code>C:\Users\&lt;你&gt;\ov</code> 都失敗，縮到 <code>C:\o</code> 才成功。也可以啟用 Windows 長路徑（系統設定，我沒動）或改用 WSL／Linux。</p>
+        <h3 id="pit-2">坑 2：PowerShell 的 JMESPath 跳脫</h3>
         <p><code>--query</code> 裡的欄位名稱有連字號（例如 <code>default-route-table-id</code>）就必須加引號。PowerShell 要寫成 <code>"data.\`"default-route-table-id\`""</code>，bash 則是 <code>'data."default-route-table-id"'</code>。沒跳脫會看到 <code>Unknown token '-'</code>。</p>
-        <p>這個反斜線加反引號的寫法，我只在 Windows PowerShell 5.1 上實測過。PowerShell 7.3 之後改了傳給外部程式的引數處理方式，這寫法可能失效，到時請改用單引號版本；7.x 我沒有環境，沒測。</p>
-        <h3 id="pit-4">坑 4：<code>--route-rules file://</code> 的路徑</h3>
+        <p>這個寫法我只在 Windows PowerShell 5.1 實測過，PowerShell 7.x 沒測。</p>
+        <h3 id="pit-3">坑 3：<code>--route-rules file://</code> 的路徑</h3>
         <p>Windows 路徑要用正斜線：<code>file://C:/路徑/routes.json</code>，用反斜線會被當成多餘的參數。</p>
-        <h3 id="pit-5">坑 5：腳本的結果檔 IP 是空的</h3>
-        <p>前面「步驟 4」提過：我實際跑的版本用 python 解析主機 ID，解析失敗，log 與結果檔裡的主機 ID 與公開 IP 都是空的。主機已經建好，我另外用 <code>oci compute instance list</code> 和 <code>list-vnics</code> 查到 IP。</p>
-        <h3 id="pit-6">坑 6：Security List 的 JSON 檔不能有 BOM</h3>
+        <h3 id="pit-4">坑 4：腳本的結果檔 IP 是空的</h3>
+        <p>我實際跑的版本在成功後用 python 從回應解析主機 ID，解析失敗，所以 log 與結果檔裡的主機 ID 與公開 IP 都是空的。主機已經建好，我另外用 <code>oci compute instance list</code> 和 <code>list-vnics</code> 查到 IP。</p>
+        <h3 id="pit-5">坑 5：Security List 的 JSON 檔不能有 BOM</h3>
         <p>用 Windows PowerShell 5.1 的 <code>Set-Content -Encoding utf8</code> 存 <code>ingress-new.json</code>，檔案開頭會多一個 BOM，<code>oci</code> 回報 <code>must be in JSON format</code>，更新沒有送出，原本的規則也沒被動到。改成用 .NET 寫成「UTF-8（不含 BOM）」就成功了。</p>
 
-        <h2 id="learned">我學到的</h2>
-        <ul>
-          <li>這次我的 A1 是在第 24 次嘗試搶到，前面 23 次都被腳本判定為可重試錯誤，沒有出現會讓腳本停止的錯誤。我沒有存下原始錯誤訊息，所以不能保證每一次的原因都是沒容量。</li>
-          <li>在 Windows 上裝 <code>oci-cli</code>，路徑要夠短，我最後是裝在 <code>C:\o</code> 才成功。</li>
-          <li>升級 Pay As You Go 和搶到的時間很接近，但我沒查升級有沒有生效，無法判斷兩者有沒有關係。</li>
-          <li>免費額度以 Oracle 官方文件為準，我只讀了其中幾頁，計費細節沒有逐項查證。</li>
-          <li>有兩層防火牆（Oracle 的 Security List 與主機自己的 iptables），網站要被連到，兩層都要放行；Security List 的更新是整份取代，更新前要先備份。</li>
-          <li>純靜態網站放在這台主機上很輕：Caddy 加上一個每 2 分鐘 <code>git pull</code> 的計時器就夠了。</li>
-        </ul>
-        <h2 id="refs">參考資料</h2>
-        <ul>
-          <li><a href="https://www.oracle.com/cloud/free/" target="_blank" rel="noopener">Oracle Cloud Free Tier</a></li>
-          <li><a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Oracle Always Free Resources</a>（官方文件）</li>
-          <li><a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier.htm" target="_blank" rel="noopener">Oracle Free Tier 說明文件</a>（試用、Always Free、升級）</li>
-          <li><a href="https://www.oracle.com/cloud/price-list/" target="_blank" rel="noopener">Oracle Cloud 價目表</a>、<a href="https://www.oracle.com/cloud/cost-estimator.html" target="_blank" rel="noopener">費用試算</a></li>
-          <li><a href="https://caddyserver.com/docs/install" target="_blank" rel="noopener">Caddy 安裝說明</a></li>
-        </ul>
-        <p>文中的指令與踩坑，是我在自己的機器上實際執行時遇到的；「可以拿來做什麼」裡除了架網站以外的用途是想法，我還沒實際跑過。</p>
       </article>
     </main>
 
