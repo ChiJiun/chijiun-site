@@ -53,3 +53,51 @@ body.blog .nav a.cur { color: var(--fg); background: var(--line); }
 details.callout summary { cursor: pointer; }
 details.callout[open] summary { margin-bottom: 8px; }
 details.callout ol { margin-top: 8px; }
+
+/* ---------- 文章目錄（toc.js 產生）---------- */
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+.toc { position: fixed; z-index: 4; }
+.toc-toggle { position: fixed; right: 16px; bottom: 18px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--solid); color: var(--fg); font: 14px var(--mono); cursor: pointer; box-shadow: 0 6px 22px rgba(0, 0, 0, .28); }
+.toc-toggle:hover, .toc-toggle[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.toc-panel { position: fixed; right: 16px; bottom: 68px; width: min(340px, calc(100vw - 32px)); max-height: 62vh; overflow-y: auto; padding: 14px 8px 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--solid); box-shadow: 0 10px 34px rgba(0, 0, 0, .34); display: none; overscroll-behavior: contain; }
+.toc.open .toc-panel { display: block; }
+.toc-title { margin: 0 0 6px 12px; font: 12px var(--mono); letter-spacing: .08em; color: var(--dim); }
+.toc ol { margin: 0; padding: 0; list-style: none; }
+
+/* 一列：[▸ 展開按鈕] [連結] */
+.toc-row { display: flex; align-items: flex-start; gap: 2px; }
+.toc-row > a { flex: 1; min-width: 0; padding: 4px 8px; border-left: 2px solid transparent; border-radius: 0 6px 6px 0; color: var(--dim); line-height: 1.45; text-decoration: none; overflow-wrap: anywhere; }
+.toc-row > a:hover { color: var(--fg); background: color-mix(in srgb, var(--line) 55%, transparent); }
+.toc-fold { flex: none; width: 20px; height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--dim); font-size: 11px; line-height: 24px; text-align: center; cursor: pointer; }
+.toc-fold::before { content: "▸"; display: inline-block; transition: transform .15s; }
+.toc-item.open > .toc-row > .toc-fold::before { transform: rotate(90deg); }
+.toc-fold:hover { color: var(--accent); }
+/* 沒有子層級的項目，留出同樣寬度，文字才會對齊 */
+.toc-item:not(.has-children) > .toc-row { padding-left: 22px; }
+
+/* 層級：越深越小、越往右縮，子層加一條左側導引線，看得出父子關係 */
+.toc-l1 > .toc-row > a { font-size: 14px; font-weight: 700; color: var(--fg); }
+.toc-l2 > .toc-row > a { font-size: 13.5px; }
+.toc-l3 > .toc-row > a { font-size: 12.5px; }
+.toc-l4 > .toc-row > a, .toc-l5 > .toc-row > a, .toc-l6 > .toc-row > a { font-size: 12px; }
+.toc-children { display: none; margin-left: 10px; padding-left: 6px; border-left: 1px solid var(--line); }
+.toc-item.open > .toc-children { display: block; }
+
+/* 目前所在章節，以及它的祖先路徑 */
+.toc-item.in-path > .toc-row > a { color: var(--fg); }
+.toc-item.active > .toc-row > a { border-left-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+/* 手機：展開按鈕與連結都放大成比較好點的大小 */
+@media (max-width: 1359px) {
+  .toc-fold { width: 32px; height: 32px; margin-top: 0; font-size: 12px; line-height: 32px; }
+  .toc-row > a { padding: 7px 8px; }
+  .toc-item:not(.has-children) > .toc-row { padding-left: 34px; }
+}
+
+/* 寬螢幕：固定在文章右側，不需要按按鈕 */
+@media (min-width: 1360px) {
+  .toc-toggle { display: none; }
+  .toc-panel { display: block; left: calc(50% + 390px + 28px); right: auto; top: 104px; bottom: auto; width: 250px; max-height: calc(100vh - 140px); padding: 4px 0; border: 0; border-left: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+}
+@media print { .toc { display: none; } }
