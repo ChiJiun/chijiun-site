@@ -114,6 +114,24 @@ def write_atomic(path, text):
     os.replace(tmp, path)
 
 
+def build_summary(samples, status, message, alert_percent, now):
+    """總覽頁（monitor/hub）讀的摘要。數字與回報給 Kuma 的相同。"""
+    data = {
+        "updated": now,
+        "status": status,
+        "message": message,
+        "samples": len(samples),
+        "official_percent": OFFICIAL_THRESHOLD,
+        "alert_percent": alert_percent,
+    }
+    if samples:
+        data["days"] = round((now - samples[0][0]) / 86400.0, 3)
+        data["cpu_p95"] = round(percentile95([s[1] for s in samples]), 2)
+        data["mem_p95"] = round(percentile95([s[2] for s in samples]), 2)
+        data["net_p95"] = round(percentile95([s[3] for s in samples]), 3)
+    return data
+
+
 def push(url, status, message, ping):
     query = urllib.parse.urlencode({"status": status, "msg": message[:240], "ping": f"{ping:.1f}"})
     sep = "&" if "?" in url else "?"
@@ -165,6 +183,17 @@ def main():
 
     status, message, ping = summarize(samples, alert_percent, min_days, now)
     print(f"{status}: {message}")
+
+    # 摘要寫到 systemd 的 RuntimeDirectory（/run/chijiun-monitor，0755），讓 Caddy 能讀給總覽頁。
+    # 寫不進去不影響回報 Kuma。
+    runtime_dir = os.environ.get("RUNTIME_DIRECTORY", "").split(":")[0]
+    if runtime_dir:
+        try:
+            summary = build_summary(samples, status, message, alert_percent, now)
+            write_atomic(os.path.join(runtime_dir, "summary.json"), json.dumps(summary, ensure_ascii=False))
+        except OSError as exc:
+            print(f"寫入摘要失敗：{exc}", file=sys.stderr)
+
     if push_url:
         try:
             push(push_url, status, message, ping)

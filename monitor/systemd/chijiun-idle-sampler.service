@@ -10,6 +10,10 @@ ExecStart=/usr/bin/python3 /var/www/chijiun/monitor/bin/idle-sampler.py
 # 不用 root 執行；樣本存在 /var/lib/chijiun-monitor
 DynamicUser=yes
 StateDirectory=chijiun-monitor
+# 摘要（summary.json）放這裡，Caddy 才讀得到；oneshot 結束後要保留，否則檔案會被清掉
+RuntimeDirectory=chijiun-monitor
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
