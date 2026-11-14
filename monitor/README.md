@@ -4,8 +4,10 @@
 
 | 網址 | 內容 | 保護方式 |
 | --- | --- | --- |
-| `monitor.chijiun.com` | Uptime Kuma：服務是否存活、通知、閒置風險、部署同步 | Kuma 自己的登入（可再加 Cloudflare Access） |
-| `netdata.chijiun.com` | Netdata：CPU、記憶體、磁碟、網路的即時圖表 | Caddy `basic_auth`（可再加 Cloudflare Access） |
+| `monitor.chijiun.com/` | Uptime Kuma：服務是否存活、通知、閒置風險、部署同步 | Kuma 自己的登入（可再加 Cloudflare Access） |
+| `monitor.chijiun.com/netdata/` | Netdata：CPU、記憶體、磁碟、網路的即時圖表 | Caddy `basic_auth`（可再加 Cloudflare Access） |
+
+兩個放在同一個網域。Uptime Kuma 官方不支援子路徑，所以 Kuma 放根目錄、Netdata 放 `/netdata/`，不能反過來。舊的 `netdata.chijiun.com` 只做轉址，指向 `/netdata/`。
 
 兩個服務都只聽 `127.0.0.1`（Kuma 3001、Netdata 19999），Oracle 防火牆不需要開新埠，外面只能經過 Caddy 進來。
 
@@ -43,12 +45,12 @@ sudo bash monitor/install.sh
 
 之後手動做的事：
 
-1. **Cloudflare DNS**：新增 `monitor`、`netdata` 兩筆 A 記錄，指向 VM 的公網 IP，橘雲（proxied）。
+1. **Cloudflare DNS**：新增 `monitor` 一筆 A 記錄，指向 VM 的公網 IP，橘雲（proxied）。（`netdata` 那筆只在需要保留舊網址轉址時才要。）
 2. **Caddy**：把 [`Caddyfile.snippet`](Caddyfile.snippet) 併進 `/etc/caddy/Caddyfile`。先執行 `caddy hash-password` 取得雜湊貼進 `basic_auth`，再 `sudo systemctl reload caddy`。
 3. **Kuma 管理員**：打開 `https://monitor.chijiun.com`，第一次進去先建立管理員帳號（請盡快做，這個畫面在建立前是誰都能建）。
 4. **在 Kuma 建立監控項目**：
    - HTTP(s)：`https://chijiun.com/`，間隔 60 秒，重試 2～3 次；另外可加一個 Keyword 型，確認頁面含「翁祺鈞」。
-   - HTTP(s)：`https://monitor.chijiun.com/`、`https://netdata.chijiun.com/`（後者回 401 算正常，在「Accepted Status Codes」加 `401`）。
+   - HTTP(s)：`https://monitor.chijiun.com/netdata/`（未登入回 401 算正常，在「Accepted Status Codes」加 `401`）。
    - Push「Oracle 閒置回收風險」：Heartbeat Interval 120 秒。
    - Push「部署同步」：Heartbeat Interval 300 秒，重試 2 次。
    - 通知方式（email 或 Telegram）在 Settings → Notifications 設定，並套用到上面所有監控。

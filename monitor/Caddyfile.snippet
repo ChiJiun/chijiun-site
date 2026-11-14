@@ -2,22 +2,35 @@
 # 兩個服務都只聽 127.0.0.1，外面只能經過 Caddy 進來。
 # tls internal 與 chijiun.com 一致（Cloudflare SSL 模式 Full）。
 #
+# 同一個網域：根目錄是 Uptime Kuma（自己的登入），/netdata/ 是 Netdata（basic auth）。
+# Uptime Kuma 官方不支援子路徑，所以 Kuma 放根目錄、Netdata 放子路徑，不能反過來。
+#
 # 注意：這是最精簡的範本。實際部署在 VM 上的版本還多了兩件事（比照 stats.chijiun.com 的區塊）：
 #   1. @not_cloudflare：只允許 Cloudflare 的 IP 直連，其餘 abort（IP 範圍複製自 stats 區塊）。
 #   2. basic_auth 的帳號密碼在 VM 的 /opt/chijiun-monitor-accounts.txt（root 才能讀），不在 git 裡。
 
 monitor.chijiun.com {
 	tls internal
-	# Uptime Kuma 有自己的登入畫面
-	reverse_proxy 127.0.0.1:3001
+
+	# Netdata 的頁面用相對路徑，一定要有結尾斜線
+	redir /netdata /netdata/ permanent
+	handle_path /netdata/* {
+		# Netdata 本身沒有登入，所以用 basic auth 擋住。
+		# 雜湊用 `caddy hash-password` 產生；把結果貼在下面，不要把密碼本身或雜湊提交進 git。
+		basic_auth {
+			chijiun <貼上 caddy hash-password 的輸出>
+		}
+		reverse_proxy 127.0.0.1:19999
+	}
+
+	# 其餘全部交給 Uptime Kuma
+	handle {
+		reverse_proxy 127.0.0.1:3001
+	}
 }
 
+# 舊網址：保留轉址，書籤不會失效（DNS 記錄可保留）
 netdata.chijiun.com {
 	tls internal
-	# Netdata 本身沒有登入，所以用 basic auth 擋住。
-	# 雜湊用 `caddy hash-password` 產生；把結果貼在下面，不要把密碼本身或雜湊提交進 git。
-	basic_auth {
-		chijiun <貼上 caddy hash-password 的輸出>
-	}
-	reverse_proxy 127.0.0.1:19999
+	redir https://monitor.chijiun.com/netdata/ permanent
 }
