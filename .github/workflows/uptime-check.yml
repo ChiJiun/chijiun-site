@@ -1,0 +1,59 @@
+name: Uptime check
+
+# 從 GitHub 的主機（VM 之外）定時檢查網站是否活著。
+# VM 自己的 Kuma／Netdata 在整台 VM 停機時會一起停，這個是它們看不到的盲點。
+# 檢查失敗時這個 workflow 會失敗，GitHub 會寄失敗通知給最後修改排程的人。
+# 排程是「盡力而為」：負載高時可能延遲數分鐘，不保證準時。
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 檢查對外網址
+        shell: bash
+        run: |
+          set -u
+          failed=()
+
+          # 每個網址最多重試 3 次，避免偶發的網路抖動造成誤報
+          fetch() {
+            curl -fsS --retry 3 --retry-delay 10 --retry-all-errors --max-time 20 "$1"
+          }
+
+          check() { # 名稱 網址 [內容必須包含的字串]
+            local name="$1" url="$2" needle="${3:-}" body
+            if ! body="$(fetch "$url")"; then
+              echo "::error title=$name::無法取得 $url"
+              failed+=("$name")
+            elif [ -n "$needle" ] && ! grep -qF -- "$needle" <<<"$body"; then
+              echo "::error title=$name::$url 的內容不含預期字串"
+              failed+=("$name")
+            else
+              echo "OK  $name  $url"
+            fi
+          }
+
+          check "個人網站" "https://chijiun.com/" "翁祺鈞"
+          check "stats-ai 健康檢查" "https://stats.chijiun.com/healthz" '"status"'
+          check "ncu-backend 健康檢查" "https://ncu-backend.chijiun.com/health" '"healthy"'
+          check "ncu-backend 就緒檢查" "https://ncu-backend.chijiun.com/ready" '"status":"ready"'
+
+          # 監控站只確認有回應（未登入會被導向登入頁），不讀取內容
+          code="$(curl -s -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 10 --retry-all-errors --max-time 20 https://monitor.chijiun.com/ || true)"
+          case "$code" in
+            200|301|302) echo "OK  監控站  HTTP $code" ;;
+            *) echo "::error title=監控站::monitor.chijiun.com 回應 HTTP $code"; failed+=("監控站") ;;
+          esac
+
+          if [ "${#failed[@]}" -gt 0 ]; then
+            echo "失敗項目：${failed[*]}"
+            exit 1
+          fi
