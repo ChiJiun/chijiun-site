@@ -225,12 +225,23 @@ curl -s https://dev.&lt;你的網域&gt;/.well-known/oauth-authorization-server<
         </ul>
         <p>還沒做的：從主機推送程式碼到 GitHub 需要的 deploy key、把 <code>tls internal</code> 換成 Let's Encrypt 並改用 Full (strict)，以及主機的定期備份。</p>
 
+        <h2 id="disk">磁碟空間夠不夠、要不要擴充</h2>
+        <p>DevSpace 本身不吃空間，但專案、<code>node_modules</code>、Docker 映像和日誌會慢慢累積。我先查了實際用量再決定要不要擴充，建議你也這樣做。</p>
+        <ul>
+          <li><strong>額度是整個帳號共用的</strong>：Oracle 的 <a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Always Free Resources</a> 寫明，每個租戶（tenancy）合計 200 GB 儲存和 5 份磁碟備份，而且<strong>開機磁碟與一般區塊磁碟合併計算</strong>，不分主機、不分 A1 或 AMD 小主機。開機磁碟最小 47 GB，建立主機時預設 50 GB。</li>
+          <li><strong>我的實際用量</strong>：我用 OCI 的 Python SDK 做了唯讀查詢（只列出資源，沒有改任何東西）。兩台主機（A1 和 AMD 小主機）的開機磁碟各 50 GB，沒有區塊磁碟，備份 0 份，合計 100 GB，租戶還剩 100 GB 和 5 份備份名額。A1 主機本身用了約 28%，所以我目前沒有擴充。</li>
+          <li><strong>要擴充時</strong>：照 Oracle 的<a href="https://docs.oracle.com/en-us/iaas/Content/Block/Tasks/resizingavolume.htm" target="_blank" rel="noopener">調整磁碟大小</a>說明，只能放大、不能縮小。放大前先做一份開機磁碟備份（會佔 1 份備份名額）；放大後還要在主機裡執行 Console 列出的指令，讓分割區跟著變大，細節見<a href="https://docs.oracle.com/en-us/iaas/Content/Block/Tasks/extendingbootpartition.htm" target="_blank" rel="noopener">延伸開機磁碟的分割區</a>。</li>
+          <li><strong>放大別一次用光</strong>：把 A1 放大會讓整個帳號剩下的額度變少，也會影響之後想再開的主機。</li>
+        </ul>
+        <p>如果空間吃緊，先清掉不需要的 Docker 映像和舊日誌，通常比擴充更快。</p>
+
         <h2 id="timeliness">時效性與使用條件</h2>
         <p>這篇的做法是 2026-11-14 實測的，並且依賴幾個會變動的東西：</p>
         <ul>
           <li><strong>ChatGPT 的外掛功能</strong>：名稱與入口已經改過（我看到的是 Plugins，OpenAI 說明中心也提到舊的 Apps 入口仍保留），之後可能再變。</li>
           <li><strong>可用方案</strong>：我核對的這篇 OpenAI 說明中心文章，寫明自訂 MCP 伺服器與完整 MCP 支援的對象是 ChatGPT Business 與 Enterprise/Edu，且只能在網頁版使用。其他方案（例如 Plus、Pro）能做到什麼程度，我沒有逐一核對，請以你帳號的 Plugins 頁面實際看到的為準。</li>
           <li><strong>用量改以 token 計算（2026 年 12 月起）</strong>：OpenAI 說明中心的<a href="https://help.openai.com/en/articles/20001625-understanding-chatgpt-and-codex-usage-limits" target="_blank" rel="noopener">〈Understanding ChatGPT and Codex usage limits〉</a>寫明，從 12 月起，Plus、Pro、Business 方案的用量額度會由 ChatGPT 與 Codex 共用，並以 token 計算；用的模型越進階、任務越複雜，扣的額度越多；Instant 聊天不會扣額度。額度用完可以等重置、升級方案，或購買 credits。剩餘用量與重置時間可在 Settings → Usage 查看。我在 2026-11-14 讀到這頁時，它標示的是「13 天前更新」，所以大約是 11 月初公布，頁面沒有寫確切的生效日，也沒有公布各方案的額度大小。這對這篇的意義是：如果你像我一樣讓 ChatGPT 在背後長時間讀檔、跑指令，用的又是進階模型，消耗的額度會比單純聊天多，這種用法的成本和可行性可能在 12 月後改變。頁面沒有提到外掛或 MCP 工具呼叫要怎麼計，這部分我沒有結論。</li>
+          <li><strong>Oracle 的免費額度</strong>：上一節的 200 GB、5 份備份是我 2026-11-14 核對官方文件時的數字，Oracle 可能調整，請以官方頁面為準。</li>
           <li><strong>DevSpace 本身</strong>：這是還在變動的開源專案，我的 fork 是以較舊的版本為基礎，之後要追上游需要合併。</li>
         </ul>
         <p>建議把「官方說明中心的頁面」當成唯一可靠的來源；這篇只是我當下的紀錄，不會自動更新。</p>
