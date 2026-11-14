@@ -7,10 +7,13 @@ After=network-online.target
 Type=oneshot
 EnvironmentFile=/etc/chijiun-monitor.env
 ExecStart=/usr/bin/python3 /var/www/chijiun/monitor/bin/idle-sampler.py
+# DynamicUser 的 RuntimeDirectory 會放在只有 root 進得去的 /run/private 底下，Caddy 讀不到，
+# 所以取樣後由 root（前綴 +）把摘要複製到公開可讀的 /run/chijiun-hub。複製失敗（前綴 -）不算服務失敗。
+ExecStartPost=-+/bin/sh -c 'install -d -m 0755 /run/chijiun-hub && install -m 0644 /run/private/chijiun-monitor/summary.json /run/chijiun-hub/summary.json'
 # 不用 root 執行；樣本存在 /var/lib/chijiun-monitor
 DynamicUser=yes
 StateDirectory=chijiun-monitor
-# 摘要（summary.json）放這裡，Caddy 才讀得到；oneshot 結束後要保留，否則檔案會被清掉
+# 取樣程式把摘要（summary.json）先寫在這裡；oneshot 結束後要保留，否則檔案會被清掉
 RuntimeDirectory=chijiun-monitor
 RuntimeDirectoryMode=0755
 RuntimeDirectoryPreserve=yes
