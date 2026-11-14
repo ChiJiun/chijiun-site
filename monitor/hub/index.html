@@ -86,7 +86,7 @@
   .chart .cursor { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
   .chart path { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; font-size: .88rem; }
-  .legend span { white-space: nowrap; }
+  .legend span { overflow-wrap: anywhere; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
   .tip { position: absolute; pointer-events: none; z-index: 2; background: var(--card); border: 1px solid var(--line);
     border-radius: 8px; padding: 6px 10px; font-size: .82rem; box-shadow: 0 4px 14px rgba(0,0,0,.18); display: none; white-space: nowrap; }
@@ -363,7 +363,7 @@
       load: async () => (await Promise.all(JOBS.map(async ([j, n], i) => { const d = await safe(nd(`chart=httpcheck_${j}.response_time&${rangeQuery()}`));
         return d && { name: n, c: i + 1, pts: mapRows(d, (v) => v.time) }; }))).filter(Boolean) },
   ];
-  const AXIS = { "%": (v) => (v >= 10 ? Math.round(v) : v.toFixed(1)) + "%", "KB/s": (v) => v >= 1000 ? (v / 1000).toFixed(1) + "MB/s" : Math.round(v) + "KB/s",
+  const AXIS = { "%": (v) => (v === 0 ? "0" : v >= 10 ? Math.round(v) : v.toFixed(1)) + "%", "KB/s": (v) => v >= 1000 ? (v / 1000).toFixed(1) + "MB/s" : Math.round(v) + "KB/s",
     "MB": (v) => Math.round(v) + "MB", "次/分": (v) => Math.round(v), "毫秒": (v) => Math.round(v) + "ms" };
   const VAL = { "%": (v) => pct(v) + "%", "KB/s": (v) => (v >= 1000 ? (v / 1000).toFixed(2) + " MB/秒" : v.toFixed(1) + " KB/秒"),
     "MB": (v) => v.toFixed(0) + " MB", "次/分": (v) => v.toFixed(1) + " 次/分", "毫秒": (v) => v.toFixed(0) + " 毫秒" };

@@ -16,7 +16,8 @@
 
 Kuma 與 Netdata 是給維運人員看的專業介面，不容易一眼看出「現在到底有沒有問題」。`hub/index.html` 是一個單檔的靜態頁，用白話整理最重要的三件事，並提供兩個大按鈕連到 Kuma 與 Netdata。不需要 build，也不依賴外部資源。
 
-- **服務有沒有活著**：個人網站、stats-ai、ncu-backend（含「檢索」「PDF 對話」兩個子系統是否就緒）。資料來自 Netdata 的 HTTP 檢查（`/etc/netdata/go.d/httpcheck.conf`，每 10 秒從 VM 本機檢查）。
+- **服務有沒有活著**：個人網站、stats-ai、ncu-backend（含「檢索」「PDF 對話」兩個子系統是否就緒），並顯示所選時間範圍內的正常率。資料來自 Netdata 的 HTTP 檢查（`/etc/netdata/go.d/httpcheck.conf`，每 10 秒從 VM 本機檢查）。
+- **趨勢圖**（可切換 1 小時、6 小時、24 小時、7 天；滑鼠移上去或手指按住會顯示該時間點的數字）：CPU、記憶體、網路流量、各容器的 CPU 與記憶體、各網域每分鐘請求數、各服務的回應時間。圖是頁面自己用 SVG 畫的，沒有外部函式庫。Netdata 的歷史只從安裝那一刻開始，資料不夠長時頁面會註明。
 - **VM 用量**：CPU、記憶體、磁碟，資料來自 Netdata。
 - **會不會被 Oracle 回收**：讀 `idle-sampler.py` 輸出的摘要。它每分鐘把摘要寫到 `/run/private/chijiun-monitor/summary.json`，再由 root（`ExecStartPost=-+…`）複製到 `/run/chijiun-hub/summary.json`，因為 DynamicUser 的目錄 Caddy 讀不到。
 - 頁面每 10 秒自動更新；最上方的橫幅會彙整「一切正常」或「有 N 項需要注意」。
