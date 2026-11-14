@@ -30,6 +30,17 @@ Kuma 本身無法加自訂連結，所以「從 Kuma 回到總覽頁」只能靠
 
 [`.github/workflows/uptime-check.yml`](../.github/workflows/uptime-check.yml) 每 10 分鐘從 GitHub 的主機（VM 之外）檢查網站與健康檢查端點，失敗時 workflow 會失敗，GitHub 會寄失敗通知。用來補上「整台 VM 停機時，VM 上的 Kuma 與 Netdata 也跟著停」的盲點。GitHub 的排程只是盡力而為，可能延遲數分鐘；Public repo 若 60 天沒有活動，排程會被自動停用。
 
+## 站外看門狗（`watchdog/`）
+
+放在另一台 Always Free 小主機（E2.1.Micro，目前是 `e2-free-1`）上，不依賴 A1 那台 VM。每分鐘檢查 `chijiun.com`（含內容比對）、`stats` 與 `ncu-backend` 的健康檢查、`monitor`，**連續 3 次失敗（約 3 分鐘）才用 Telegram 通知**，恢復時也會通知；每天台北時間 9 點發一則「全部正常」回報，沒收到就代表看門狗自己出問題。補上 Kuma 與 Netdata 跟著 A1 一起停機時沒人通知的缺口。
+
+- 只用 Python 標準函式庫，systemd timer 執行（`DynamicUser`、唯讀檔案系統、記憶體上限 100 MB），小主機 1 GB 綽綽有餘。
+- 安裝：把 `watchdog/` 複製到小主機，`sudo bash install.sh`。可重複執行，不會覆蓋已填好的設定。
+- 通知設定在小主機的 `/etc/chijiun-watchdog.env`（權限 600）：填 `TELEGRAM_BOT_TOKEN` 與 `TELEGRAM_CHAT_ID`，下一分鐘生效，不用重啟。沒填時只寫日誌（`journalctl -u chijiun-watchdog`），不會報錯。
+- 通知沒送成功（沒設定或 Telegram 暫時失敗）不會標記為「已通知」，下一分鐘會再試。
+- 要檢查的網址寫在 `watchdog.py` 開頭的 `CHECKS`；改完重新執行 `install.sh`。
+- 注意：它只確認「從外面連得進來」，不看 VM 內部用量；用量與閒置回收風險仍看 `/hub/`。
+
 ## 監控項目
 
 | 想知道的事 | 怎麼做 |
@@ -109,6 +120,6 @@ journalctl -u chijiun-idle-sampler.service -u chijiun-sync-report.service -n 20 
 
 ## 已知限制
 
-- **監控站跟著被監控的 VM 一起死**：VM 整台停機時，Kuma 也跟著停，不會有人通知你。要真的偵測整機掛掉，需要一個放在 VM 之外的監控（例如免費的 UptimeRobot 或 Cloudflare Health Checks 盯 `https://chijiun.com/`）。這是目前設計最大的缺口。
+- **監控站跟著被監控的 VM 一起死**：VM 整台停機時，Kuma 也跟著停。已由 GitHub Actions 與小主機上的站外看門狗補上；看門狗要填好 Telegram 設定才會通知。
 - Uptime Kuma 的監控項目是存在它自己的資料庫，不在 repo 裡；要備份請備份 Docker volume `uptime-kuma`。
 - VM 用的是臨時（ephemeral）公網 IP，不要停止或刪除 VM，否則 IP 會變，Cloudflare 的 DNS 記錄要跟著改。

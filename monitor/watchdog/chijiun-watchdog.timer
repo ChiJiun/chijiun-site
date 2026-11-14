@@ -1,0 +1,10 @@
+[Unit]
+Description=每分鐘執行站外看門狗
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

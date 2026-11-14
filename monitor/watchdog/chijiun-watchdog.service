@@ -1,0 +1,17 @@
+[Unit]
+Description=chijiun 站外看門狗（檢查網站並用 Telegram 通知）
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+StateDirectory=chijiun-watchdog
+# TELEGRAM_BOT_TOKEN、TELEGRAM_CHAT_ID 放在這個檔（權限 600，root 擁有）；沒有這個檔也能跑，只是不通知
+EnvironmentFile=-/etc/chijiun-watchdog.env
+ExecStart=/usr/bin/python3 -I /opt/chijiun-watchdog/watchdog.py
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+MemoryMax=100M
