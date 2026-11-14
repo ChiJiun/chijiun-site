@@ -1,0 +1,19 @@
+[Unit]
+Description=從小主機拉取站外看門狗的狀態摘要（給總覽頁用）
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=chijiun-pull
+# 私鑰在 /etc/chijiun-monitor/pull_key（擁有者 chijiun-pull、權限 600），不在 git 裡
+ExecStart=/bin/bash /var/www/chijiun/monitor/bin/pull-watchdog.sh
+RuntimeDirectory=chijiun-pull
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+# 結果由 root 複製到 Caddy 讀得到的位置（與 idle sampler 的 summary.json 同一個資料夾）
+ExecStartPost=-+/bin/sh -c 'install -d -m 0755 /run/chijiun-hub && install -m 0644 /run/chijiun-pull/watchdog.json /run/chijiun-hub/watchdog.json'
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes

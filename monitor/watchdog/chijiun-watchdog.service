@@ -10,6 +10,8 @@ StateDirectory=chijiun-watchdog
 # TELEGRAM_BOT_TOKEN、TELEGRAM_CHAT_ID 放在這個檔（權限 600，root 擁有）；沒有這個檔也能跑，只是不通知
 EnvironmentFile=-/etc/chijiun-watchdog.env
 ExecStart=/usr/bin/python3 -I /opt/chijiun-watchdog/watchdog.py
+# 摘要（不含機密）由 root 複製到全域可讀的位置，供 A1 經唯讀 SSH 拉取；DynamicUser 的目錄別人讀不到
+ExecStartPost=-+/bin/sh -c 'install -d -m 0755 /run/chijiun-watchdog && install -m 0644 /var/lib/private/chijiun-watchdog/status.json /run/chijiun-watchdog/status.json'
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

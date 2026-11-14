@@ -108,26 +108,34 @@
   <p class="hint">每 10 秒從 VM 本機檢查一次。「正常」代表對方有回應，而且回應內容是對的。卡片下方的「正常率」是你選的時間範圍內，被檢查到正常的比例。</p>
   <div class="grid" id="services"></div>
 
-  <h2>2. VM 現在的用量</h2>
+  <h2>2. 站外看門狗（從另一台機器檢查）</h2>
+  <p class="hint">這台 VM 如果整台停機，上面的監控也會跟著停。所以另外有一台獨立的小主機，每分鐘從外面連一次你的網站，連續失敗就用 Telegram 通知你。這裡顯示它最近一次的檢查結果。</p>
+  <div class="card" id="watchdog">讀取中…</div>
+
+  <h2>3. VM 現在的用量</h2>
   <p class="hint">這台是 Oracle 免費的 ARM 主機。數字越低代表越空閒，不是壞事。</p>
   <div class="card" id="usage">讀取中…</div>
 
-  <h2>3. 會不會被 Oracle 回收</h2>
+  <h2>4. 會不會被 Oracle 回收</h2>
   <p class="hint">Oracle 的規則：連續 7 天，CPU、記憶體、網路<strong>三項都低於 20%</strong>，閒置的免費主機可能被回收。只要<strong>任何一項</strong>高於 20% 就不會被判定閒置。</p>
   <div class="card" id="idle">讀取中…</div>
 
-  <h2>4. 一段時間內的變化（趨勢圖）</h2>
+  <h2>5. 一段時間內的變化（趨勢圖）</h2>
   <p class="hint">想知道「剛剛是不是變慢了」「昨天晚上有沒有異常」，看這裡。把滑鼠移到圖上（手機是手指按住）可以看到那個時間點的數字。</p>
   <div class="range" role="group" aria-label="時間範圍" id="range"></div>
   <p class="note" id="coverage"></p>
   <div class="stack" id="charts"></div>
 
-  <h2>5. 要看更細的細節，點這裡</h2>
+  <h2>6. 要看更細的細節，點這裡</h2>
   <p class="hint">這個頁面是把最重要的整理成白話。更細的內容在下面兩個工具。</p>
   <div class="links">
     <a class="big" href="/">
       <strong>Uptime Kuma →</strong>
       <span>網站「過去」有沒有掛過、每次回應多久、憑證何時到期。通知（掛掉時傳訊息給你）也在這裡設定。</span>
+    </a>
+    <a class="big" href="/hub/netdata-guide.html">
+      <strong>Netdata 看不懂？先看這裡 →</strong>
+      <span>用白話教你打開 Netdata 之後該看哪 5 個地方、數字代表什麼、什麼情況才要擔心。</span>
     </a>
     <a class="big" href="/netdata/">
       <strong>Netdata →</strong>
@@ -143,6 +151,7 @@
       <dt>第 95 百分位（p95）</dt><dd>把 7 天的數字由小排到大，取第 95% 的位置，意思是「幾乎整段時間的忙碌程度，忽略最忙的 5%」。Oracle 用它判斷是否閒置。</dd>
       <dt>就緒檢查（ready）</dt><dd>ncu-backend 的「檢索」和「PDF 對話」兩個子系統都準備好了，才算就緒。</dd>
       <dt>回應時間</dt><dd>檢查程式向服務打招呼，到收到回覆花的時間。突然變很長，通常代表服務忙不過來。</dd>
+      <dt>站外看門狗</dt><dd>放在另一台獨立小主機上的檢查程式。它從「外面」連你的網站，所以即使這台 VM 整台停機也能發現並通知你。</dd>
       <dt>正常率</dt><dd>在選定的時間範圍內，每次檢查都正常的比例。100% 代表一次都沒有失敗。</dd>
     </dl>
   </details>
@@ -284,6 +293,43 @@
         <p class="meaning">${detail ? detail + "。" : ""}${s.meaning}${upText}</p></div>`;
     }).join("");
     return problems;
+  }
+
+  // ----- 站外看門狗 -----
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function fmtUptime(sec) {
+    const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600);
+    return d ? `${d} 天 ${h} 小時` : `${h} 小時 ${Math.floor((sec % 3600) / 60)} 分`;
+  }
+  async function renderWatchdog() {
+    let w;
+    try {
+      const r = await fetch("/hub/data/watchdog.json", { cache: "no-store", credentials: "same-origin" });
+      if (r.status === 404) { $("watchdog").innerHTML = `<span class="muted">還沒有看門狗的資料（A1 還沒開始從小主機拉取，通常是剛安裝）。</span>`; return ""; }
+      if (!r.ok) throw new Error(r.status);
+      w = await r.json();
+    } catch (e) { $("watchdog").innerHTML = `<span class="err">讀不到看門狗資料。</span>`; return ""; }
+
+    const age = Math.round(Date.now() / 1000 - w.updated);
+    const stale = age > 300;
+    const bad = w.checks.filter((c) => !c.ok);
+    const alerting = w.checks.filter((c) => c.alerted);
+    let cls = "ok", label = "正常", msg = "小主機從外面檢查，每一項都有回應。";
+    if (stale) { cls = "bad"; label = "沒有回報"; msg = `看門狗已經 ${Math.round(age / 60)} 分鐘沒有更新。可能是小主機停機、連不上，或看門狗程式停了；請檢查小主機。`; }
+    else if (alerting.length) { cls = "bad"; label = "異常"; msg = `已通知你 Telegram：${alerting.map((c) => c.name).join("、")}。`; }
+    else if (bad.length) { cls = "warn"; label = "檢查失敗中"; msg = `${bad.map((c) => c.name).join("、")} 剛剛檢查失敗，連續 ${w.threshold} 次才會通知。`; }
+    const hs = w.host_stats || {};
+    const hostLine = hs.mem_used_pct != null
+      ? `小主機自己：記憶體 ${hs.mem_used_pct}%（共 ${hs.mem_total_mb} MB）、負載 ${hs.load1}、已開機 ${fmtUptime(hs.uptime_s)}`
+      : "小主機自己的用量讀不到。";
+    $("watchdog").innerHTML = `<h3 style="margin:0 0 8px">${esc(w.host)}<span class="pill ${cls}">${label}</span></h3>
+      <p class="meaning" style="margin:0 0 10px">${msg}${w.telegram ? "" : `<br><span class="err">Telegram 通知尚未設定，出事不會通知你。</span>`}</p>` +
+      w.checks.map((c) => `<div class="row"><div class="label"><span>${esc(c.name)}　<span class="muted">${esc(c.detail)}${c.ms != null ? `，${c.ms} 毫秒` : ""}</span></span>
+        <strong class="${c.ok ? "" : "err"}">${c.ok ? "正常" : "異常"}</strong></div></div>`).join("") +
+      `<p class="meaning">${hostLine}。最近一次檢查：${stale ? `<span class="err">${Math.round(age / 60)} 分鐘前</span>` : (age < 90 ? `${age} 秒前` : `${Math.round(age / 60)} 分鐘前`)}。</p>`;
+    if (stale) return "站外看門狗沒有回報";
+    if (alerting.length) return `站外看門狗：${alerting.map((c) => c.name).join("、")} 異常`;
+    return "";
   }
 
   // ----- 目前用量 -----
@@ -433,12 +479,12 @@
 
   async function refresh() {
     authFailed = false;
-    const [svc, use, idle] = await Promise.all([renderServices(), renderUsage(), renderIdle()]);
-    const problems = [...svc, ...use]; if (idle) problems.push(idle);
+    const [svc, use, idle, wd] = await Promise.all([renderServices(), renderUsage(), renderIdle(), renderWatchdog()]);
+    const problems = [...svc, ...use]; if (idle) problems.push(idle); if (wd) problems.push(wd);
     const b = $("banner");
     if (authFailed) { b.className = "banner bad"; b.innerHTML = "登入已過期<small>請重新整理頁面並輸入帳號密碼。</small>"; }
     else if (problems.length) { b.className = "banner bad"; b.innerHTML = `有 ${problems.length} 項需要注意<small>${problems.join("；")}</small>`; }
-    else { b.className = "banner ok"; b.innerHTML = "一切正常<small>服務都有回應，用量在安全範圍。</small>"; }
+    else { b.className = "banner ok"; b.innerHTML = "一切正常<small>服務都有回應，站外看門狗也正常，用量在安全範圍。</small>"; }
     $("updated").textContent = "更新於 " + new Date().toLocaleTimeString("zh-TW", { hour12: false }) + "，現況每 10 秒更新、趨勢圖每分鐘更新";
   }
 

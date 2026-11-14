@@ -91,15 +91,52 @@ def save_state(state):
     os.replace(tmp, STATE_FILE)
 
 
+def host_stats():
+    """小主機自己的用量，讀 /proc，失敗就回傳空的。"""
+    out = {}
+    try:
+        with open("/proc/loadavg") as f:
+            out["load1"] = float(f.read().split()[0])
+        mem = {}
+        with open("/proc/meminfo") as f:
+            for line in f:
+                k, v = line.split(":")
+                mem[k] = int(v.split()[0])
+        out["mem_total_mb"] = round(mem["MemTotal"] / 1024)
+        out["mem_used_pct"] = round(100 * (1 - mem["MemAvailable"] / mem["MemTotal"]), 1)
+        with open("/proc/uptime") as f:
+            out["uptime_s"] = int(float(f.read().split()[0]))
+    except (OSError, ValueError, KeyError):
+        pass
+    return out
+
+
+def write_status(now, results, checks):
+    """給總覽頁讀的摘要。不含 token 或任何機密；只有檢查結果與主機用量。"""
+    status = {
+        "updated": int(time.time()),
+        "host": os.uname().nodename,
+        "threshold": FAIL_THRESHOLD,
+        "telegram": bool(os.environ.get("TELEGRAM_BOT_TOKEN", "").strip() and os.environ.get("TELEGRAM_CHAT_ID", "").strip()),
+        "checks": [dict(r, fails=checks[r["name"]]["fails"], alerted=checks[r["name"]]["alerted"]) for r in results],
+        "host_stats": host_stats(),
+    }
+    tmp = os.path.join(STATE_DIR, "status.json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(status, f, ensure_ascii=False)
+    os.replace(tmp, os.path.join(STATE_DIR, "status.json"))
+
+
 def main():
     state = load_state()
     checks = state.setdefault("checks", {})
     now = datetime.now(TZ)
-    lines_down, lines_up, summary, pending_alert = [], [], [], []
+    lines_down, lines_up, summary, pending_alert, results = [], [], [], [], []
 
     for name, url, codes, needle in CHECKS:
         ok, detail, ms = check(url, codes, needle)
         st = checks.setdefault(name, {"fails": 0, "alerted": False, "since": None})
+        results.append({"name": name, "ok": ok, "detail": detail, "ms": ms})
         summary.append(f"{'OK ' if ok else 'NG '} {name}: {detail}" + (f" {ms}ms" if ms is not None else ""))
         if ok:
             if st["alerted"]:
@@ -127,6 +164,7 @@ def main():
             state["heartbeat"] = today
 
     save_state(state)
+    write_status(now, results, checks)
 
 
 if __name__ == "__main__":

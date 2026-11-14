@@ -14,12 +14,12 @@ if [ "$REPO" != "/var/www/chijiun" ]; then
   echo "注意：repo 在 $REPO，但 systemd unit 寫死 /var/www/chijiun/monitor/…；請確認路徑一致。" >&2
 fi
 
-echo "==> 1/5 安裝相依套件（docker.io、curl、python3）"
+echo "==> 1/6 安裝相依套件（docker.io、curl、python3）"
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io curl python3
 systemctl enable --now docker
 
-echo "==> 2/5 Uptime Kuma（只聽 127.0.0.1:3001）"
+echo "==> 2/6 Uptime Kuma（只聽 127.0.0.1:3001）"
 if docker ps -a --format '{{.Names}}' | grep -qx uptime-kuma; then
   echo "    已存在，略過"
 else
@@ -30,7 +30,7 @@ else
     louislam/uptime-kuma:2
 fi
 
-echo "==> 3/5 Netdata（官方 kickstart，穩定版、關閉匿名統計）"
+echo "==> 3/6 Netdata（官方 kickstart，穩定版、關閉匿名統計）"
 if command -v netdata >/dev/null 2>&1; then
   echo "    已安裝，略過"
 else
@@ -52,7 +52,7 @@ if ! grep -Eq '^\s*bind to\s*=\s*(127\.0\.0\.1|localhost)' /etc/netdata/netdata.
   fi
 fi
 
-echo "==> 4/5 回報用設定檔 /etc/chijiun-monitor.env"
+echo "==> 4/6 回報用設定檔 /etc/chijiun-monitor.env"
 if [ -e /etc/chijiun-monitor.env ]; then
   echo "    已存在，略過"
 else
@@ -70,13 +70,33 @@ SYNC_PUSH_URL=
 EOF
 fi
 
-echo "==> 5/5 安裝並啟用 systemd timer"
+echo "==> 5/6 安裝並啟用 systemd timer"
 install -m 644 "$REPO"/monitor/systemd/chijiun-idle-sampler.service /etc/systemd/system/
 install -m 644 "$REPO"/monitor/systemd/chijiun-idle-sampler.timer   /etc/systemd/system/
 install -m 644 "$REPO"/monitor/systemd/chijiun-sync-report.service  /etc/systemd/system/
 install -m 644 "$REPO"/monitor/systemd/chijiun-sync-report.timer    /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now chijiun-idle-sampler.timer chijiun-sync-report.timer
+
+echo "==> 6/6 站外看門狗的拉取服務（讓總覽頁顯示小主機看門狗的結果）"
+# 專用使用者 + 專用 SSH 金鑰；私鑰只留在這台。公鑰要放到小主機的 wdread 帳號，
+# 並限定成只能執行 cat 狀態檔（見 monitor/README.md「站外看門狗」）。已存在就略過。
+getent passwd chijiun-pull >/dev/null || useradd --system --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin chijiun-pull
+install -d -m 0755 /etc/chijiun-monitor
+[ -e /etc/chijiun-monitor/pull_key ] || ssh-keygen -q -t ed25519 -N "" -C chijiun-pull@a1 -f /etc/chijiun-monitor/pull_key
+chown chijiun-pull:chijiun-pull /etc/chijiun-monitor/pull_key
+chmod 600 /etc/chijiun-monitor/pull_key; chmod 644 /etc/chijiun-monitor/pull_key.pub
+install -m 644 "$REPO"/monitor/systemd/chijiun-pull-watchdog.service /etc/systemd/system/
+install -m 644 "$REPO"/monitor/systemd/chijiun-pull-watchdog.timer   /etc/systemd/system/
+systemctl daemon-reload
+if [ -s /etc/chijiun-monitor/pull_known_hosts ]; then
+  systemctl enable --now chijiun-pull-watchdog.timer
+else
+  echo "    還沒有 /etc/chijiun-monitor/pull_known_hosts（小主機的主機公鑰），先不啟用拉取 timer。"
+  echo "    取得小主機公鑰後：echo '10.0.0.87 <小主機 /etc/ssh/ssh_host_ed25519_key.pub 前兩欄>' | sudo tee /etc/chijiun-monitor/pull_known_hosts"
+  echo "    再執行 sudo systemctl enable --now chijiun-pull-watchdog.timer"
+fi
+echo "    要放到小主機 wdread 帳號的公鑰："; cat /etc/chijiun-monitor/pull_key.pub
 
 echo
 echo "完成。接下來（細節見 monitor/README.md）："

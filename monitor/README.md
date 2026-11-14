@@ -19,6 +19,8 @@ Kuma 與 Netdata 是給維運人員看的專業介面，不容易一眼看出「
 - **服務有沒有活著**：個人網站、stats-ai、ncu-backend（含「檢索」「PDF 對話」兩個子系統是否就緒），並顯示所選時間範圍內的正常率。資料來自 Netdata 的 HTTP 檢查（`/etc/netdata/go.d/httpcheck.conf`，每 10 秒從 VM 本機檢查）。
 - **趨勢圖**（可切換 1 小時、6 小時、24 小時、7 天；滑鼠移上去或手指按住會顯示該時間點的數字）：CPU、記憶體、網路流量、各容器的 CPU 與記憶體、各網域每分鐘請求數、各服務的回應時間。圖是頁面自己用 SVG 畫的，沒有外部函式庫。Netdata 的歷史只從安裝那一刻開始，資料不夠長時頁面會註明。
 - **VM 用量**：CPU、記憶體、磁碟，資料來自 Netdata。
+- **站外看門狗**：顯示小主機從外面檢查網站的結果（見下方「站外看門狗」）。
+- **Netdata 導覽**：[`hub/netdata-guide.html`](hub/netdata-guide.html) 用白話教怎麼看 Netdata（含「Skip and use the dashboard anonymously」這個容易卡住的登入畫面）。
 - **會不會被 Oracle 回收**：讀 `idle-sampler.py` 輸出的摘要。它每分鐘把摘要寫到 `/run/private/chijiun-monitor/summary.json`，再由 root（`ExecStartPost=-+…`）複製到 `/run/chijiun-hub/summary.json`，因為 DynamicUser 的目錄 Caddy 讀不到。
 - 頁面每 10 秒自動更新；最上方的橫幅會彙整「一切正常」或「有 N 項需要注意」。
 
@@ -40,6 +42,18 @@ Kuma 本身無法加自訂連結，所以「從 Kuma 回到總覽頁」只能靠
 - 通知沒送成功（沒設定或 Telegram 暫時失敗）不會標記為「已通知」，下一分鐘會再試。
 - 要檢查的網址寫在 `watchdog.py` 開頭的 `CHECKS`；改完重新執行 `install.sh`。
 - 注意：它只確認「從外面連得進來」，不看 VM 內部用量；用量與閒置回收風險仍看 `/hub/`。
+
+### 總覽頁怎麼拿到看門狗的結果
+
+總覽頁第 2 節顯示小主機最近一次的檢查結果、小主機自己的記憶體／負載／開機時間，超過 5 分鐘沒更新會標紅並進橫幅。資料流：
+
+1. 小主機的 `watchdog.py` 每分鐘寫 `status.json`（只有檢查結果與主機用量，**不含 token**），root 複製到 `/run/chijiun-watchdog/status.json`。
+2. A1 的 `chijiun-pull-watchdog.timer` 每分鐘跑 [`bin/pull-watchdog.sh`](bin/pull-watchdog.sh)，經 Oracle 私有網路（`10.0.0.87`）用 SSH 拉取，驗證是合法 JSON 才放到 `/run/chijiun-hub/watchdog.json`，總覽頁讀 `/hub/data/watchdog.json`。拉取失敗不動舊檔，所以過期會被發現。
+3. SSH 金鑰是**專用的唯讀金鑰**：私鑰只在 A1（`/etc/chijiun-monitor/pull_key`，擁有者 `chijiun-pull`，權限 600）；公鑰放在小主機 `wdread` 帳號（無 sudo、無密碼），並以 `restrict,command="/bin/cat /run/chijiun-watchdog/status.json"` 限定。拿到這把金鑰也只能讀那個檔案，不能登入或執行別的指令。A1 用 `StrictHostKeyChecking=yes` 與寫死的主機公鑰（`/etc/chijiun-monitor/pull_known_hosts`）確認對方身分。
+4. 不開任何對外埠：兩台在同一個私有網段，只用既有的 SSH 22。
+
+安裝（A1 上 `sudo bash monitor/install.sh` 第 6 步會建使用者、金鑰與 timer）後，要手動做兩件事：把印出的公鑰放進小主機 `wdread` 的 `authorized_keys`（含上面的 `restrict,command=…` 前綴），並把小主機的主機公鑰寫進 A1 的 `pull_known_hosts`。
+
 
 ## 監控項目
 
