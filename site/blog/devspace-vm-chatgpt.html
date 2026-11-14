@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>把 DevSpace 搬到雲端主機：不開電腦，用 ChatGPT 操作專案 · 翁祺鈞</title>
+    <meta name="description" content="用免費的雲端主機、Caddy 與 Cloudflare 部署 DevSpace（MCP 伺服器），取代本機加 ngrok，並在 ChatGPT 加入成自訂外掛；包含部署步驟、使用的服務、安全考量與踩到的坑。" />
+    <meta property="og:title" content="把 DevSpace 搬到雲端主機：不開電腦，用 ChatGPT 操作專案" />
+    <meta property="og:description" content="DevSpace 部署到雲端主機、接上 ChatGPT 的流程與踩到的坑，並附上這類工具的時效性說明。" />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://chijiun.com/blog/devspace-vm-chatgpt.html" />
+    <meta name="theme-color" content="#0a0f22" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0f22'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='16' font-weight='700' fill='%237dd3fc'%3ECJ%3C/text%3E%3C/svg%3E" />
+    <script>
+      try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+    </script>
+    <link rel="stylesheet" href="../styles.css?v=d7fa51ca" />
+    <link rel="stylesheet" href="blog.css?v=adeb6882" />
+  </head>
+  <body class="blog">
+    <a class="skip" href="#main">跳到主要內容</a>
+
+    <nav class="nav" aria-label="主選單">
+      <a class="brand" href="../">Chi-Jiun<span>.</span></a>
+      <a class="sec" href="../#research">研究</a>
+      <a class="sec" href="../#experience">經歷</a>
+      <a class="sec" href="../#projects">作品</a>
+      <a class="sec cur" href="./" aria-current="page">文章</a>
+      <button id="theme" type="button" aria-label="切換深色或淺色">◐</button>
+    </nav>
+
+    <main id="main" class="blog-wrap">
+      <a class="back" href="./">← 全部文章</a>
+
+      <article class="post">
+        <header>
+          <h1 id="top">把 DevSpace 搬到雲端主機：不開電腦，用 ChatGPT 操作專案</h1>
+          <div class="post-meta">2026-11-14 · 約 10 分鐘讀完</div>
+          <ul class="tags"><li>DevSpace</li><li>MCP</li><li>ChatGPT</li><li>Caddy</li><li>Cloudflare</li><li>部署</li></ul>
+          <p class="lead">DevSpace 是一個 MCP 伺服器，讓 ChatGPT 能讀寫專案檔案、執行指令。我原本把它跑在自己的電腦上、再用 ngrok 對外，缺點是電腦必須一直開著。這篇記錄我把它搬到一台免費的雲端主機、改用自己的網域，並在 ChatGPT 加入成自訂外掛的流程。</p>
+        </header>
+
+        <div class="callout warn">
+          <p><strong>這類工具有時效性。</strong>ChatGPT 的外掛（MCP）功能、可用方案與介面仍在變動，下面的畫面與名稱是 2026-11-14 的狀況。動手前請先看 <a href="https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt" target="_blank" rel="noopener">OpenAI 說明中心的這一篇</a>，以官方當下的寫法為準。細節見文末的「時效性與使用條件」。</p>
+        </div>
+
+        <h2 id="intro">簡介</h2>
+        <p>DevSpace 是開源專案（<a href="https://github.com/Waishnav/devspace" target="_blank" rel="noopener">Waishnav/devspace</a>），啟動後會開一個 MCP 端點。ChatGPT 連上之後，可以用它提供的工具開啟專案、讀檔、改檔、跑指令，做的事情和在終端機裡操作專案類似，只是由對話驅動。要讓 ChatGPT 連得到，端點必須有一個公開的 HTTPS 網址，並且有授權機制，避免陌生人也能用。</p>
+        <p>文中的 IP、密碼與金鑰都不會出現，以 <code>&lt;佔位符&gt;</code> 代替。</p>
+
+        <h2 id="why">為什麼不繼續用本機加 ngrok</h2>
+        <p>我原本的做法是：DevSpace 跑在 Windows 上，用 ngrok 的固定網域把 7676 埠對外，ChatGPT 連那個網址。能用，但有幾個痛點：</p>
+        <ul>
+          <li><strong>電腦要一直開著。</strong>關機或睡眠，ChatGPT 就連不上。</li>
+          <li><strong>程序容易莫名消失。</strong>我踩過 DevSpace 的父程序結束後它也跟著結束，但 ngrok 是獨立程序還活著，結果是「ngrok 網址存在，但本機 7676 沒有程式在聽」。</li>
+          <li><strong>排程可能不會啟動。</strong>我用 Windows 工作排程管理它，一度設成「使用電池時禁止啟動」，筆電用電池時排程顯示 Ready，卻不會真的啟動。</li>
+          <li>要維護啟動、檢查、停止三個批次檔，網址變動時還要同步改設定檔與 ChatGPT 裡的 URL。</li>
+        </ul>
+        <p>既然我已經有一台免費的雲端主機在跑個人網站（見<a href="oracle-free-arm-vm.html">上一篇</a>），把 DevSpace 放上去最直接：24 小時開機、有固定的公開網域、用系統服務管理。代價是它不再碰得到我電腦上的檔案，只能操作放在主機上的專案。</p>
+
+        <h2 id="arch">架構與使用的服務</h2>
+<pre><code>ChatGPT ──HTTPS──&gt; Cloudflare（DNS、代理）
+                       │
+                       ▼
+                    Caddy（雲端主機上的反向代理，只放行 Cloudflare）
+                       │
+                       ▼
+                    DevSpace（只聽 127.0.0.1:7676，由 systemd 管理）
+                       │
+                       ▼
+                    /home/devspace/projects/（唯一被允許操作的目錄）</code></pre>
+        <table>
+          <thead><tr><th>服務</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td>Oracle Cloud Always Free（ARM 主機）</td><td>主機，免費，不用開自己的電腦</td></tr>
+            <tr><td>systemd</td><td>開機自動啟動、失敗自動重啟，取代工作排程與批次檔</td></tr>
+            <tr><td>Node.js 22 與 DevSpace</td><td>MCP 伺服器本體</td></tr>
+            <tr><td>Caddy</td><td>反向代理；對 Cloudflare 的 IP 範圍以外的請求直接中斷</td></tr>
+            <tr><td>Cloudflare（DNS、代理、SSL Full）</td><td>提供固定網址，取代 ngrok 的網域</td></tr>
+            <tr><td>DevSpace 內建的 OAuth（Owner 密碼）</td><td>只有輸入密碼的人能授權使用</td></tr>
+          </tbody>
+        </table>
+        <p>和 ngrok 相比，網址是自己的網域，不受免費方案限制，也不依賴本機是否開機；代價是更新、安全與備份都由自己負責。</p>
+
+        <h2 id="deploy">部署流程</h2>
+        <p>以下以 Ubuntu 24.04 ARM 為例，假設主機已經能 SSH 登入、Caddy 已經在跑（網域與 Caddy 的部分見上一篇）。</p>
+
+        <h3 id="step-1">步驟 1：建立低權限使用者與 Node</h3>
+        <p>DevSpace 能執行任意指令，所以讓它以專用的低權限使用者執行，不要用你自己的帳號。</p>
+<pre><code>sudo useradd -m -s /bin/bash devspace
+sudo mkdir -p /home/devspace/projects
+sudo chown devspace:devspace /home/devspace/projects</code></pre>
+        <p>DevSpace 需要 Node 22.19 以上。我從 nodejs.org 下載 Linux arm64 的壓縮檔，解開到 <code>/opt/node</code>，再把 <code>node</code>、<code>npm</code>、<code>npx</code> 連結到 <code>/usr/local/bin</code>（版本號依你下載的為準）。</p>
+<pre><code>sudo mkdir -p /opt/node
+curl -fsSL https://nodejs.org/dist/v&lt;VERSION&gt;/node-v&lt;VERSION&gt;-linux-arm64.tar.xz | sudo tar -xJ -C /opt/node --strip-components=1
+sudo ln -sf /opt/node/bin/node /usr/local/bin/node
+sudo ln -sf /opt/node/bin/npm  /usr/local/bin/npm
+sudo ln -sf /opt/node/bin/npx  /usr/local/bin/npx</code></pre>
+
+        <h3 id="step-2">步驟 2：安裝 DevSpace</h3>
+        <p>用 <code>devspace</code> 使用者把套件裝在自己的家目錄，不需要 root。</p>
+<pre><code>sudo -u devspace bash -c 'echo "prefix=/home/devspace/.npm-global" &gt; ~/.npmrc'
+sudo -u devspace npm install -g @waishnav/devspace</code></pre>
+        <p>也可以改裝自己的 fork 版本：在主機上 clone、<code>npm ci</code> 後 <code>npm run build</code>，再把服務的啟動指令指向 <code>dist/cli.js</code>（見後面的 fork 一節）。</p>
+
+        <h3 id="step-3">步驟 3：環境檔</h3>
+        <p>設定放在只有 root 讀得到的環境檔，裡面有授權用的密碼，不要放進專案或貼到任何地方。</p>
+<pre><code>sudo mkdir -p /etc/devspace
+sudo tee /etc/devspace/env &gt;/dev/null &lt;&lt;EOF
+HOST=127.0.0.1
+PORT=7676
+DEVSPACE_ALLOWED_ROOTS=/home/devspace/projects
+DEVSPACE_PUBLIC_BASE_URL=https://dev.&lt;你的網域&gt;
+DEVSPACE_OAUTH_OWNER_TOKEN=$(openssl rand -base64 32)
+EOF
+sudo chmod 600 /etc/devspace/env</code></pre>
+        <ul>
+          <li><code>HOST=127.0.0.1</code>：只聽本機，外部流量一定要經過 Caddy。</li>
+          <li><code>DEVSPACE_ALLOWED_ROOTS</code>：DevSpace 只能操作這個目錄底下的專案。我只放需要的專案，不要放 <code>/</code>。</li>
+          <li><code>DEVSPACE_PUBLIC_BASE_URL</code>：對外的網址，OAuth 的回呼網址會用到，要和你在 ChatGPT 填的一致。</li>
+          <li><code>DEVSPACE_OAUTH_OWNER_TOKEN</code>：Owner 密碼。ChatGPT 連線時，授權頁會要你輸入它。</li>
+        </ul>
+
+        <h3 id="step-4">步驟 4：systemd 服務</h3>
+<pre><code># /etc/systemd/system/devspace.service
+[Unit]
+Description=DevSpace MCP server (ChatGPT)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=devspace
+Group=devspace
+WorkingDirectory=/home/devspace
+EnvironmentFile=/etc/devspace/env
+ExecStart=/home/devspace/.npm-global/bin/devspace serve
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=tmpfs
+BindPaths=/home/devspace
+ProtectKernelTunables=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+        <p><code>NoNewPrivileges</code>、<code>ProtectSystem</code>、<code>ProtectHome</code> 是 systemd 的沙箱選項：<code>ProtectHome=tmpfs</code> 讓服務看不到其他使用者的家目錄，<code>BindPaths</code> 再把 <code>devspace</code> 自己的家目錄放回去。這只是多一層防護，不等於完整的隔離。</p>
+<pre><code>sudo systemctl daemon-reload
+sudo systemctl enable --now devspace
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:7676/mcp</code></pre>
+        <p>最後一行回 <strong>401</strong> 才是對的：代表服務已經在聽，只是還沒帶授權。連線被拒絕或沒有回應，才代表沒啟動。</p>
+
+        <h3 id="step-5">步驟 5：Caddy</h3>
+        <p>在 Caddyfile 新增一個站台。這個站台只放行 Cloudflare 的 IP 範圍（<a href="https://www.cloudflare.com/ips/" target="_blank" rel="noopener">官方清單</a>），其他來源直接中斷。MCP 用串流回應，所以 <code>flush_interval -1</code> 關掉緩衝。</p>
+<pre><code>dev.&lt;你的網域&gt; {
+	tls internal
+	@not_cloudflare not remote_ip &lt;Cloudflare 的 IP 範圍，空白分隔&gt;
+	route {
+		abort @not_cloudflare
+		header Strict-Transport-Security "max-age=31536000"
+		reverse_proxy 127.0.0.1:7676 {
+			flush_interval -1
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		}
+	}
+}</code></pre>
+<pre><code>sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-$(date +%Y%m%d%H%M%S)
+sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+sudo systemctl reload caddy</code></pre>
+        <p>先備份、先 <code>validate</code> 再重載：同一個 Caddy 還在服務其他網站，設定寫錯不要把它們一起弄掉。<code>tls internal</code> 用 Caddy 內建的憑證，搭配 Cloudflare 的 SSL「Full」模式可以運作；之後要換成 Let's Encrypt 並改用 Full (strict)，我還沒做。</p>
+
+        <h3 id="step-6">步驟 6：Cloudflare 的 DNS</h3>
+        <p>在 Cloudflare 的 DNS 新增一筆 A 紀錄：名稱 <code>dev</code>，內容是主機的公開 IP，Proxy 狀態維持開啟（橘雲）。因為 Caddy 只放行 Cloudflare 的 IP，所以這筆一定要開代理，不然直連會被中斷。</p>
+        <p>從外部驗證：</p>
+<pre><code>curl -s -o /dev/null -w "%{http_code}\n" https://dev.&lt;你的網域&gt;/mcp
+curl -s https://dev.&lt;你的網域&gt;/.well-known/oauth-authorization-server</code></pre>
+        <p>第一行應該回 401，第二行應該回一段 JSON，裡面的 <code>authorization_endpoint</code> 與 <code>token_endpoint</code> 都是你的網域。從主機本機用外網網址測，會因為 Caddy 的 IP 限制被中斷，要從別台機器測。</p>
+
+        <h2 id="chatgpt">在 ChatGPT 加入成外掛</h2>
+        <p>以下依 OpenAI 說明中心的流程，介面名稱可能再變：</p>
+        <ol>
+          <li>用瀏覽器開 ChatGPT 網頁版，進入 <strong>Plugins</strong>。目前這個流程不需要先開 Developer Mode；說明中心也寫明自訂 MCP 伺服器只能在網頁版連接，手機不行。</li>
+          <li>按加號，選 <strong>Add custom MCP server</strong>。</li>
+          <li>填名稱（例如 <code>DevSpace</code>），Connection 填 <code>https://dev.&lt;你的網域&gt;/mcp</code>。</li>
+          <li>驗證方式選 OAuth。</li>
+          <li>閱讀風險警告並勾選同意，按 <strong>Create as a plugin</strong>，確認掃描到的工具清單。</li>
+          <li>授權頁會要你輸入 Owner 密碼，用自己的終端機取出（<code>sudo grep OWNER_TOKEN /etc/devspace/env</code>），貼進授權頁核准。</li>
+          <li>開新對話，輸入 <code>@</code> 選這個外掛，第一句讓它 <code>open_workspace</code> 到你的專案目錄。</li>
+        </ol>
+        <div class="callout">
+          <p>OpenAI 說明中心提醒：ChatGPT 對寫入或修改的動作可能先請你確認，有些風險特別高的動作可能直接被擋下。連接來源不明的 MCP 伺服器有被 prompt injection 的風險，只連你信任的伺服器。</p>
+        </div>
+
+        <h2 id="fork">我的 fork 多了什麼</h2>
+        <p>我把 DevSpace fork 到 <a href="https://github.com/ChiJiun/devspace" target="_blank" rel="noopener">ChiJiun/devspace</a>，加了幾個讓日常開發更順的功能。程式碼智慧那部分是直接移植自 <a href="https://github.com/rebel0789/codexpro" target="_blank" rel="noopener">CodexPro</a>（MIT 授權），原作者的授權聲明保留在 repo 的 <code>THIRD_PARTY_NOTICES.md</code>。</p>
+        <ul>
+          <li><strong>交接（<code>save_handoff</code>）</strong>：長對話會越來越慢，建議每個小任務開新對話。工作告一段落時請模型存一份摘要（目標、已完成、決策、下一步，附 Git 狀態），存在主機的狀態目錄、不寫進專案。下次開同一專案時自動帶回最新一份。</li>
+          <li><strong>建議的檢查指令</strong>：開專案時讀 <code>package.json</code>、Makefile 等設定，列出可能的測試、型別檢查、lint 指令。只是建議，不會自動執行。</li>
+          <li><strong>程式碼智慧</strong>：<code>inspect_workspace</code>（專案概覽與符號清單）、<code>search_code</code>（結果分成定義、引用、測試、設定、文件）、<code>review_impact</code>（改動會影響哪些檔案與測試）。符號與 import 是用正規表示式抽出來的，是線索，不是編譯器等級的索引。</li>
+        </ul>
+        <p>我刻意<strong>沒有做權限模式</strong>：工具一律完整開放，限制模型行為的規則，改寫在 ChatGPT 的自訂指示裡（例如不執行破壞性指令、不讀取機密、不動系統設定）。要注意這只是對模型的要求，不是技術上的限制；真正的邊界是低權限使用者、允許的目錄與主機本身的隔離。</p>
+
+        <h2 id="security">安全考量</h2>
+        <ul>
+          <li><strong>授權</strong>：端點用 OAuth 加 Owner 密碼擋住陌生人。密碼放在 root 才讀得到的環境檔，不要貼進對話或專案。</li>
+          <li><strong>範圍</strong>：只開放 <code>DEVSPACE_ALLOWED_ROOTS</code> 底下的目錄，以低權限使用者執行，看不到我個人電腦的任何檔案。</li>
+          <li><strong>網路</strong>：服務只聽本機，Caddy 只放行 Cloudflare 的 IP。</li>
+          <li><strong>主機是共用的</strong>：同一台主機還跑著我的網站與其他服務，DevSpace 以低權限使用者執行並不代表絕對安全，所以我在自訂指示裡也要求它不要動主機上的其他服務。</li>
+          <li><strong>prompt injection</strong>：模型讀到的檔案或網頁內容可能夾帶惡意指示。不要讓它處理來源不明的內容，並留意它要求執行的指令。</li>
+        </ul>
+
+        <h2 id="local">想繼續用本機加 ngrok 的話</h2>
+        <p>流程更短，適合只是試用。安裝 DevSpace 後執行 <code>devspace init</code> 產生設定檔，把 <code>host</code> 設 <code>127.0.0.1</code>、<code>port</code> 設 7676、<code>allowedRoots</code> 設要開放的磁碟或目錄，<code>publicBaseUrl</code> 填 ngrok 的網址；ngrok 用它免費提供的固定網域（<code>ngrok http 7676 --url &lt;你的網域&gt;</code>），MCP 端點就是該網域加 <code>/mcp</code>。要背景執行，可以用 Windows 工作排程並允許電池模式啟動；本機回應 401 一樣是正常的。</p>
+        <p>另外，DevSpace 預設的 bash 工具說明會讓 ChatGPT 避開 <code>git commit</code>、<code>git push</code> 這類會寫入的 Git 指令。社群有一個 pull request（<a href="https://github.com/Waishnav/devspace/pull/181" target="_blank" rel="noopener">#181</a>）調整這段說明，我自己的版本有套用這個調整。</p>
+
+        <h2 id="pitfalls">踩到的坑</h2>
+        <ul>
+          <li><strong>主機上裝不起 <code>node-pty</code></strong>：它是 DevSpace 的選用依賴，只有「需要 TTY 的互動式指令」會用到，需要編譯工具，而我的主機沒有。一般指令不受影響。在主機上 <code>npm run build</code> 會因為缺少它的型別而報錯，所以我改成在自己的電腦建置好，再把 <code>dist</code> 資料夾傳上去。</li>
+          <li><strong>401 才是正常</strong>：服務有起來、只是沒帶授權時就是 401。不要因為看到 401 就以為壞了。</li>
+          <li><strong>測不到自己的網址</strong>：Caddy 只放行 Cloudflare 的 IP，從主機本機或直連 IP 測外網網址都會被中斷，要從別台機器經 Cloudflare 測。</li>
+          <li><strong>長時間沒有輸出的指令</strong>：依我所知，Cloudflare 代理對來源回應有約 100 秒的逾時，超過會斷線。我沒有實際測過，但預期超過一分鐘的指令，我會在自訂指示裡要求模型背景執行、輸出寫到檔案再分段查看。</li>
+          <li><strong>改了服務沒有備份</strong>：我是用 systemd 的 drop-in 檔（<code>/etc/systemd/system/devspace.service.d/</code>）改啟動指令，要回復只要刪掉那個檔再重啟；Caddyfile 也先備份。建議你也這樣做。</li>
+        </ul>
+        <p>還沒做的：從主機推送程式碼到 GitHub 需要的 deploy key、把 <code>tls internal</code> 換成 Let's Encrypt 並改用 Full (strict)，以及主機的定期備份。</p>
+
+        <h2 id="timeliness">時效性與使用條件</h2>
+        <p>這篇的做法是 2026-11-14 實測的，並且依賴幾個會變動的東西：</p>
+        <ul>
+          <li><strong>ChatGPT 的外掛功能</strong>：名稱與入口已經改過（我看到的是 Plugins，OpenAI 說明中心也提到舊的 Apps 入口仍保留），之後可能再變。</li>
+          <li><strong>可用方案</strong>：我核對的這篇 OpenAI 說明中心文章，寫明自訂 MCP 伺服器與完整 MCP 支援的對象是 ChatGPT Business 與 Enterprise/Edu，且只能在網頁版使用。其他方案（例如 Plus、Pro）能做到什麼程度，我沒有逐一核對，請以你帳號的 Plugins 頁面實際看到的為準。</li>
+          <li><strong>用量改以 token 計算（2026 年 12 月起）</strong>：OpenAI 說明中心的<a href="https://help.openai.com/en/articles/20001625-understanding-chatgpt-and-codex-usage-limits" target="_blank" rel="noopener">〈Understanding ChatGPT and Codex usage limits〉</a>寫明，從 12 月起，Plus、Pro、Business 方案的用量額度會由 ChatGPT 與 Codex 共用，並以 token 計算；用的模型越進階、任務越複雜，扣的額度越多；Instant 聊天不會扣額度。額度用完可以等重置、升級方案，或購買 credits。剩餘用量與重置時間可在 Settings → Usage 查看。我在 2026-11-14 讀到這頁時，它標示的是「13 天前更新」，所以大約是 11 月初公布，頁面沒有寫確切的生效日，也沒有公布各方案的額度大小。這對這篇的意義是：如果你像我一樣讓 ChatGPT 在背後長時間讀檔、跑指令，用的又是進階模型，消耗的額度會比單純聊天多，這種用法的成本和可行性可能在 12 月後改變。頁面沒有提到外掛或 MCP 工具呼叫要怎麼計，這部分我沒有結論。</li>
+          <li><strong>DevSpace 本身</strong>：這是還在變動的開源專案，我的 fork 是以較舊的版本為基礎，之後要追上游需要合併。</li>
+        </ul>
+        <p>建議把「官方說明中心的頁面」當成唯一可靠的來源；這篇只是我當下的紀錄，不會自動更新。</p>
+      </article>
+    </main>
+
+    <footer class="footer wrap">© 2026 翁祺鈞 Chi-Jiun Wong</footer>
+
+    <script src="toc.js?v=29d0b14b" defer></script>
+    <script>
+      document.getElementById('theme').addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('theme', next); } catch {}
+      });
+    </script>
+  </body>
+</html>
