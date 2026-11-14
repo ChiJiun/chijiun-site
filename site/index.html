@@ -8,12 +8,13 @@
     <meta property="og:title" content="翁祺鈞 Chi-Jiun Wong" />
     <meta property="og:description" content="可驗證的隱私保護機器學習、區塊鏈與金融科技。" />
     <meta property="og:url" content="https://chijiun.com/" />
-    <meta name="theme-color" content="#0a0f22" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0f22'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='16' font-weight='700' fill='%237dd3fc'%3ECJ%3C/text%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#0c0c0b" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230c0c0b'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-size='16' font-weight='700' fill='%23ffa028'%3ECJ%3C/text%3E%3C/svg%3E" />
     <script>
       try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=d7fa51ca" />
+    <link rel="preload" href="fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="styles.css?v=637432bb" />
   </head>
   <body>
     <a class="skip" href="#main">跳到主要內容</a>
@@ -32,34 +33,37 @@
     </nav>
 
     <main id="main">
-      <header class="hero wrap" id="top">
-        <div>
-          <p class="tagline" id="tagline"></p>
-          <h1 id="name"></h1>
-          <p class="intro" id="intro"></p>
-          <p class="motto" id="motto"></p>
-          <div class="links" id="links"></div>
-        </div>
-        <div class="deck">
-          <div class="hud" id="hud" aria-live="polite"></div>
-          <div class="kb-stage">
-            <div class="kb" id="kb" role="group" aria-label="互動鍵盤：按實體鍵盤的字母鍵，或點鍵帽，看每項技能用在哪裡"></div>
+      <header class="hero" id="top">
+        <canvas id="fx" aria-hidden="true"></canvas>
+        <div class="hero-in wrap">
+          <div>
+            <p class="tagline" id="tagline"></p>
+            <h1 id="name"></h1>
+            <p class="intro" id="intro"></p>
+            <p class="motto" id="motto"></p>
+            <div class="links" id="links"></div>
           </div>
-          <div class="deck-foot">
-            <div class="legend" id="legend"></div>
-            <button class="sound" id="sound" type="button" aria-pressed="false">按鍵音效：關</button>
+          <div class="deck">
+            <div class="hud" id="hud" aria-live="polite"></div>
+            <div class="kb-stage">
+              <div class="kb" id="kb" role="group" aria-label="互動鍵盤：按實體鍵盤的字母鍵，或點鍵帽，看每項技能用在哪裡"></div>
+            </div>
+            <div class="deck-foot">
+              <div class="legend" id="legend"></div>
+              <button class="sound" id="sound" type="button" aria-pressed="false">按鍵音效：關</button>
+            </div>
           </div>
         </div>
       </header>
 
       <section class="section wrap" id="research">
-        <div class="sh"><h2>研究</h2></div>
+        <div class="sh"><span class="no" aria-hidden="true">01</span><h2>研究</h2><span class="hint" aria-hidden="true">research.md</span></div>
         <div class="interests" id="interests"></div>
         <div id="studies"></div>
       </section>
 
       <section class="section wrap" id="experience">
-        <div class="sh"><h2>經歷</h2><span class="hint">點一下視窗，用 j / k 讀</span></div>
+        <div class="sh"><span class="no" aria-hidden="true">02</span><h2>經歷</h2><span class="hint">點一下視窗，用 j / k 讀</span></div>
         <div class="win rise" id="win">
           <div class="titlebar">
             <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -76,14 +80,14 @@
       </section>
 
       <section class="section wrap" id="projects">
-        <div class="sh"><h2>作品</h2></div>
+        <div class="sh"><span class="no" aria-hidden="true">03</span><h2>作品</h2><span class="hint" aria-hidden="true">projects.md</span></div>
         <ul class="cards" id="cards"></ul>
         <p class="more-title">MORE</p>
         <ul class="more" id="more"></ul>
       </section>
 
       <section class="section wrap" id="contact" hidden>
-        <div class="sh"><h2>聯絡</h2></div>
+        <div class="sh"><span class="no" aria-hidden="true">04</span><h2>聯絡</h2><span class="hint" aria-hidden="true">contact.md</span></div>
         <p class="contact-lead">有合作、研究或實習的事想聊，直接在這裡寫信給我。<span id="contact-direct"></span></p>
         <form class="panel contact rise" id="contact-form">
           <label>怎麼稱呼你<input name="name" type="text" autocomplete="name" required maxlength="80" /></label>
@@ -115,6 +119,6 @@
       </div>
     </dialog>
 
-    <script type="module" src="main.js?v=0f72cff8"></script>
+    <script type="module" src="main.js?v=a06ddfe0"></script>
   </body>
 </html>

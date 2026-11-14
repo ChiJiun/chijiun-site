@@ -6,7 +6,7 @@
   python scripts/version-assets.py --check  # 只檢查，有過期的就回傳 1（不改檔）
 
 做法：檔案內容（統一成 LF 換行再算）的 SHA-1 前 8 碼。內容沒變，版本就不會變。
-先處理 JS 之間的 import（main.js 引用 data.js），再處理 HTML，所以 main.js 變動時 index.html 也會跟著更新。
+先處理 JS 之間的 import（main.js 引用 data.js，以及動態載入的 vendor 檔），再處理 HTML，所以 main.js 變動時 index.html 也會跟著更新。
 """
 import hashlib
 import re
@@ -42,8 +42,10 @@ def main() -> int:
     check = "--check" in sys.argv
     changed = []
 
-    # 1. JS 的 import：from './data.js'
-    js_import = re.compile(r"(?P<pre>from\s+['\"])(?P<path>\./[\w./-]+\.js)(?:\?v=\w+)?(?P<post>['\"])")
+    # 1. JS 的 import：from './data.js'，以及動態載入的 import('./vendor/x.js')
+    js_import = re.compile(
+        r"(?P<pre>(?:from\s+|import\(\s*)['\"])(?P<path>\./[\w./-]+\.js)(?:\?v=\w+)?(?P<post>['\"])"
+    )
     # 2. HTML 的 <link href="x.css"> 與 <script src="x.js">（只處理本站相對路徑）
     html_ref = re.compile(
         r"(?P<pre>(?:href|src)=\")(?P<path>(?!https?:|//|data:)[\w./-]+\.(?:css|js))(?:\?v=\w+)?(?P<post>\")"

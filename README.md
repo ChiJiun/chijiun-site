@@ -2,7 +2,7 @@
 
 翁祺鈞（Chi-Jiun Wong）的個人網站：https://chijiun.com/
 
-目前是純靜態網站，沒有 build 步驟、沒有相依套件，跑在一台 Oracle Cloud 的 Always Free 主機上。之後可能改寫成動態版（有後端），所以 repo 取名 `chijiun-site`，不綁定靜態或 GitHub Pages。
+目前是純靜態網站，沒有 build 步驟、不用安裝相依套件（字體與 shader 函式庫都是放在 repo 裡的現成檔案），跑在一台 Oracle Cloud 的 Always Free 主機上。之後可能改寫成動態版（有後端），所以 repo 取名 `chijiun-site`，不綁定靜態或 GitHub Pages。
 
 ## 部署方式
 
@@ -16,12 +16,15 @@
 
 - `site/data.js`：全部內容（自介、研究、經歷、作品、技能鍵盤）。改內容只要改這個檔案。
 - `site/index.html`：頁面骨架。
-- `site/styles.css`：樣式；深色、淺色兩套配色，980px 以下首屏改成單欄。
+- `site/styles.css`：樣式；深色（近黑配琥珀）、淺色（紙色配深橘）兩套配色，都寫在檔案開頭的變數裡，要換主色只改 `--accent`、`--accent-rgb`、`--ink`、`--fx`。直角、髮絲線格線；980px 以下首屏改成單欄。
+- `site/fonts/`：自架的拉丁字體（Archivo、JetBrains Mono，SIL OFL 1.1，授權在 `OFL.txt`）。中文用系統字體，不另外載入。
+- `site/vendor/`：首屏背景用的 [Shaders](https://shaders.com)（MIT）精簡版，預先打包好直接提交。只有要升級版本或換元件時才執行 `node scripts/build-shaders.mjs` 重新產生（需要 Node 與 npm，在暫存資料夾安裝，不會在 repo 留下 `node_modules`），跑完再執行 `python scripts/version-assets.py`；檔名帶版本號，升級時要同步改 `main.js` 裡的 import。`shaders-LICENSE.txt` 是它與內含相依套件（TypeGPU 等）的授權全文，由同一支腳本產生。
 - `site/main.js`：互動。
-  - 背景點陣會被滑鼠推開，按鍵或點擊會起漣漪。
+  - 首屏背景是 WebGPU 的抖色雜訊（Shaders）：會稍微跟著滑鼠偏移，按鍵時閃一下，隨深淺色換色。檔案約 1.3 MB（gzip 約 310 KB），所以只在寬螢幕（981px 以上）、瀏覽器支援 WebGPU、沒開「減少動態效果」與省流量模式時才延遲載入；遙測已關閉。訪客可以用 `:fx` 關掉（會記在瀏覽器裡）。
+  - 其他情況（手機、不支援 WebGPU、載入失敗）改用點陣背景：會被滑鼠推開，按鍵或點擊會起漣漪。
   - 首屏鍵盤：按實體鍵盤的字母鍵或點鍵帽，顯示那項技能用在哪裡；數字鍵 1、2、3、0 跳到各區塊。
   - 「經歷」是一個編輯器視窗：點一下之後用 `j`/`k` 移動、`h`/`l` 切換檔案、Enter 開連結。
-  - `:` 或 `/` 開指令列（`:theme`、`:e awards`、`:sound`、`:blog`、`:help`），Ctrl K 搜尋。
+  - `:` 或 `/` 開指令列（`:theme`、`:e awards`、`:sound`、`:fx`、`:blog`、`:help`），Ctrl K 搜尋。
 - 聯絡表單：在 `data.js` 的 `contact` 填入 Web3Forms 的 access key（或 email）後才會顯示。
 - `site/blog/`：文章區，一樣是純靜態、沒有 build 步驟。
   - `index.html`：文章列表。新增文章時，在 `post-list` 裡複製一個 `<li class="post-item">`。

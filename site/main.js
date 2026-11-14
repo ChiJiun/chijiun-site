@@ -50,7 +50,15 @@ research.forEach((r) => {
     box.append(flow);
   }
   const ul = el('ul', 'points');
-  r.points.forEach((p) => ul.append(el('li', '', p)));
+  ul.setAttribute('role', 'list'); // list-style: none 會讓 Safari 的 VoiceOver 不再把它念成清單
+  r.points.forEach((p) => {
+    // 「問題：…」「做法：…」這類短標籤拆出來，讓四個重點一眼分得開。
+    const m = p.match(/^([^：，。、]{2,4})：(.+)$/s);
+    const li = el('li');
+    if (m) li.append(el('span', 'k', `${m[1]}：`), m[2]);
+    else li.textContent = p;
+    ul.append(li);
+  });
   box.append(ul, ext(el('a', 'more-link', `${r.link.label} →`), r.link.href));
   $('studies').append(box);
 });
@@ -111,14 +119,14 @@ addEventListener('scroll', onScroll, { passive: true });
 onScroll();
 const goTo = (id) => (id === 'top' ? scrollTo({ top: 0, behavior: smooth }) : $(id).scrollIntoView({ behavior: smooth }));
 
-// ---------- dot-field background ----------
+// ---------- dot-field background (fallback when the hero shader is off) ----------
 // Named `flow` for its two callers: burst() on key presses, recolor() on theme change.
 const flow = (() => {
   const cv = $('bg');
   const ctx = cv.getContext('2d');
   const GAP = 32, R = 140, LIFE = 1400;
   const mouse = { x: -9999, y: -9999 };
-  let W = 0, H = 0, pts = [], ripples = [], ink = '', raf = 0;
+  let W = 0, H = 0, pts = [], ripples = [], ink = '', raf = 0, on = false;
 
   const readColors = () => { ink = getComputedStyle(root).getPropertyValue('--ink').trim(); };
   function draw() {
@@ -133,6 +141,7 @@ const flow = (() => {
     ctx.globalAlpha = 1;
   }
   function resize() {
+    if (!on) return;
     const dpr = Math.min(devicePixelRatio || 1, 2);
     W = innerWidth; H = innerHeight;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -161,12 +170,10 @@ const flow = (() => {
     draw();
     raf = energy > 0.6 || ripples.length ? requestAnimationFrame(step) : 0;
   }
-  const wake = () => { if (!raf && !reduced) raf = requestAnimationFrame(step); };
-  const ripple = (x, y) => { ripples.push({ x, y, t: performance.now() }); wake(); };
+  const wake = () => { if (on && !raf && !reduced) raf = requestAnimationFrame(step); };
+  const ripple = (x, y) => { if (!on) return; ripples.push({ x, y, t: performance.now() }); wake(); };
   const leave = () => { mouse.x = mouse.y = -9999; wake(); };
 
-  readColors();
-  resize();
   addEventListener('resize', resize);
   addEventListener('pointermove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; wake(); });
   addEventListener('pointerdown', (e) => { if (!e.target.closest('.key')) ripple(e.clientX, e.clientY); });
@@ -176,14 +183,152 @@ const flow = (() => {
 
   return {
     burst: ripple,
-    recolor() { readColors(); draw(); },
+    recolor() { if (on) { readColors(); draw(); } },
+    enable() { if (on) return; on = true; readColors(); resize(); },
+    disable() {
+      if (!on) return;
+      on = false;
+      cancelAnimationFrame(raf); raf = 0; ripples = [];
+      ctx.clearRect(0, 0, W, H);
+    },
   };
 })();
+
+// ---------- hero shader (WebGPU, shaders.com) ----------
+// A dithered noise field behind the hero: noise is what differential privacy adds, so it is the
+// one decorative thing on the page. Loaded lazily and only where it is cheap: wide screens with
+// WebGPU, no reduced-motion, no data-saver. Everywhere else the dot field above takes over.
+const fx = (() => {
+  const cv = $('fx');
+  // The same query as the CSS breakpoint that hides #fx, so the two can never disagree.
+  const narrow = matchMedia('(max-width: 980px)');
+  // Read live rather than once at load: the CSS hides #fx the moment reduced motion is switched on.
+  const calm = matchMedia('(prefers-reduced-motion: reduce)');
+  const BASE = 0.42, AIM = { x: 1, y: 0.2 };
+  // off: the visitor switched it off (:fx). dead: this browser cannot run it, so never try again.
+  let shader = null, raf = 0, seen = true, off = false, dead = false, busy = false, wired = false;
+  try { off = localStorage.getItem('fx') === 'off'; } catch {}
+  let aimX = AIM.x, aimY = AIM.y, curX = AIM.x, curY = AIM.y, aimRaf = 0;
+  const aimTick = () => {
+    curX += (aimX - curX) * 0.06; curY += (aimY - curY) * 0.06;
+    shader?.update('mask', { center: { x: curX, y: curY } });
+    aimRaf = shader && Math.abs(aimX - curX) + Math.abs(aimY - curY) > 0.0005 ? requestAnimationFrame(aimTick) : 0;
+  };
+  const color = () => getComputedStyle(root).getPropertyValue('--fx').trim();
+  // Everything that can be decided without loading the bundle: can it run here, and is it wanted.
+  const able = () => !dead && 'gpu' in navigator && !calm.matches && !narrow.matches && !navigator.connection?.saveData;
+  const eligible = () => !off && able();
+  // The mask radius is measured in canvas heights. Cap it by the aspect ratio so that on tall
+  // windows the field still stops short of the text column.
+  const radius = () => Math.min(1.5, (0.9 * cv.clientWidth) / Math.max(1, cv.clientHeight));
+  const fit = () => { if (cv.clientHeight) shader?.update('mask', { radius: radius() }); };
+  const sync = () => {
+    if (!shader) return;
+    const show = !off && !narrow.matches && !calm.matches;
+    if (show && seen && !document.hidden) shader.resume(); else shader.pause();
+    root.classList.toggle('fx-on', show);
+    if (show) flow.disable(); else flow.enable();
+  };
+  async function start() {
+    if (shader) return true;
+    if (busy || !eligible()) return false;
+    busy = true;
+    // If the download or the GPU setup hangs, do not leave the page without a background.
+    const slow = setTimeout(flow.enable, 6000);
+    try {
+      // Cheap check before fetching 1.3 MB: WebGPU can exist without a usable adapter.
+      if (!(await navigator.gpu.requestAdapter().catch(() => null))) { dead = true; return false; }
+      const { createShader } = await import('./vendor/shaders-4.0.7.min.js?v=d9c44cac');
+      // createShader pins the canvas to its current pixel size unless a CSS size is already set inline.
+      cv.style.width = '100%'; cv.style.height = '100%';
+      // onError also fires for device losses the library recovers from; only a terminal one has a failure reason.
+      const onError = () => {
+        if (!shader?.getFailureReason()) return;
+        shader = null; dead = true;
+        root.classList.remove('fx-on');
+        flow.enable();
+      };
+      const made = await createShader(cv, {
+        components: [
+          // Soft circle anchored top-right: the mask keeps the field off the text column.
+          { type: 'Circle', id: 'mask', props: { visible: false, color: '#ffffff', radius: radius(), softness: 1, center: { ...AIM } } },
+          { type: 'SimplexNoise', id: 'noise', props: { colorA: '#ffffff', colorB: '#000000', scale: 2.6, speed: 0.3, balance: 0.35, maskSource: 'mask' } },
+          { type: 'Dither', id: 'dither', props: { pattern: 'bayer4', pixelSize: 3, threshold: BASE, colorA: 'transparent', colorB: color() } },
+        ],
+      // onReady fires again after the library rebuilds a lost device, which resets colour, mask and the paused state.
+      }, { disableTelemetry: true, onError, onReady: () => { recolor(); fit(); sync(); } });
+      if (made.getFailureReason()) { dead = true; return false; }
+      shader = made;
+      // The theme or the window may have changed while the shader was being built.
+      recolor();
+      fit();
+      if (!wired) {
+        wired = true;
+        // Entries arrive oldest first; only the latest one describes the current state.
+        new IntersectionObserver((entries) => { seen = entries[entries.length - 1].isIntersecting; sync(); }).observe(cv);
+        new ResizeObserver(fit).observe(cv);
+        document.addEventListener('visibilitychange', sync);
+      }
+      sync();
+      return true;
+    } catch (e) {
+      console.warn('[fx] shader unavailable, using the dot field instead', e);
+      dead = true;
+      return false;
+    } finally {
+      clearTimeout(slow);
+      busy = false;
+    }
+  }
+  const recolor = () => shader?.update('dither', { colorB: color() });
+  const boot = () => start().then((ok) => { if (!ok) flow.enable(); });
+  // Crossing the breakpoint or switching reduced motion: re-sync a running shader, or start one
+  // that could not run when the page loaded.
+  const retry = () => (shader ? sync() : boot());
+  narrow.addEventListener('change', retry);
+  calm.addEventListener('change', retry);
+  return {
+    eligible, boot, recolor,
+    // The field animates on its own, so it needs an off switch (WCAG 2.2.2). Returns the new
+    // state, or null where the shader is not shown anyway and there is nothing to switch.
+    toggle() {
+      if (!able()) return null;
+      off = !off;
+      try { localStorage.setItem('fx', off ? 'off' : 'on'); } catch {}
+      if (shader) sync(); else if (!off) boot();
+      return !off;
+    },
+    // The field leans a little toward the pointer (nx, ny in 0..1 across the hero).
+    aim(nx, ny) {
+      if (!shader || off) return;
+      aimX = AIM.x + (nx - 0.5) * 0.18; aimY = AIM.y + (ny - 0.5) * 0.18;
+      if (!aimRaf) aimRaf = requestAnimationFrame(aimTick);
+    },
+    // A key press briefly lets more of the noise through. The threshold stays under 0.5: above it
+    // the dither lights dots everywhere, including behind the text.
+    pulse() {
+      if (!shader || off) return;
+      const t0 = performance.now();
+      cancelAnimationFrame(raf);
+      const tick = (now) => {
+        const k = Math.min(1, (now - t0) / 520);
+        shader?.update('dither', { threshold: BASE + 0.07 * (1 - k) ** 2 });
+        if (k < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    },
+  };
+})();
+// Where the shader cannot run, show the dot field right away. Otherwise start the shader once the
+// page is idle, so parsing the bundle never competes with first paint.
+if (!fx.eligible()) flow.enable();
+else (window.requestIdleCallback ?? ((run) => setTimeout(run, 200)))(fx.boot, { timeout: 2000 });
 
 // ---------- skill readout ----------
 const hud = $('hud');
 function hudIdle() {
   hud.replaceChildren();
+  hud.classList.remove('empty');
   const p = el('p', 'hud-idle');
   p.append('> ', finePointer ? '按鍵盤上任何一個字母鍵，或點鍵帽' : '點任何一個鍵帽', el('span', 'caret'));
   const q = el('p', 'hud-idle');
@@ -193,6 +338,7 @@ function hudIdle() {
 function hudSkill(key, s) {
   const c = cats[s.cat];
   hud.replaceChildren();
+  hud.classList.remove('empty');
   hud.style.setProperty('--c', c.color);
   const top = el('div', 'hud-top');
   top.append(el('span', 'hud-key', key.toUpperCase()), el('span', 'hud-name', s.name), el('span', 'hud-cat', c.label));
@@ -201,6 +347,7 @@ function hudSkill(key, s) {
 }
 function hudEmpty(key) {
   hud.replaceChildren();
+  hud.classList.add('empty'); // 沒有分類色時鍵名的底是主色，字色要跟著換（見 .hud.empty）
   hud.style.removeProperty('--c');
   const top = el('div', 'hud-top');
   top.append(el('span', 'hud-key', key.toUpperCase()), el('span', 'hud-name', '這個鍵還空著'));
@@ -285,7 +432,10 @@ function press(k) {
   b.classList.add('down');
   clack();
   const rect = b.getBoundingClientRect();
-  if (rect.bottom > 0 && rect.top < innerHeight) flow.burst(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  if (rect.bottom > 0 && rect.top < innerHeight) {
+    flow.burst(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    fx.pulse();
+  }
   if (skills[k]) {
     active?.classList.remove('active');
     active = b;
@@ -307,13 +457,14 @@ for (const type of ['pointerup', 'pointerleave', 'pointercancel']) kb.addEventLi
 addEventListener('blur', releaseAll);
 addEventListener('keyup', (e) => release(e.key.toLowerCase()));
 
-// ---------- pointer: keyboard tilt, hero letters, card glare ----------
+// ---------- pointer: keyboard tilt, hero letters, card glow ----------
 if (finePointer && !reduced) {
   const hero = $('top');
   hero.addEventListener('pointermove', (e) => {
     const rect = hero.getBoundingClientRect();
     kb.style.setProperty('--px', ((e.clientX / innerWidth) * 2 - 1).toFixed(3));
     kb.style.setProperty('--py', (((e.clientY - rect.top) / rect.height) * 2 - 1).toFixed(3));
+    fx.aim(e.clientX / innerWidth, (e.clientY - rect.top) / rect.height);
     for (const s of letters) {
       const b = s.getBoundingClientRect();
       const d = Math.hypot(e.clientX - (b.left + b.width / 2), e.clientY - (b.top + b.height / 2));
@@ -323,19 +474,13 @@ if (finePointer && !reduced) {
   hero.addEventListener('pointerleave', () => {
     kb.style.setProperty('--px', 0); kb.style.setProperty('--py', 0);
     letters.forEach((s) => s.style.setProperty('--k', 0));
+    fx.aim(0.5, 0.5);
   });
   document.querySelectorAll('.card').forEach((card) => {
     card.addEventListener('pointermove', (e) => {
       const b = card.getBoundingClientRect();
-      const px = (e.clientX - b.left) / b.width, py = (e.clientY - b.top) / b.height;
-      card.style.setProperty('--rx', `${((0.5 - py) * 9).toFixed(2)}deg`);
-      card.style.setProperty('--ry', `${((px - 0.5) * 11).toFixed(2)}deg`);
-      card.style.setProperty('--mx', `${(px * 100).toFixed(1)}%`);
-      card.style.setProperty('--my', `${(py * 100).toFixed(1)}%`);
-    });
-    card.addEventListener('pointerleave', () => {
-      card.style.setProperty('--rx', '0deg');
-      card.style.setProperty('--ry', '0deg');
+      card.style.setProperty('--mx', `${(((e.clientX - b.left) / b.width) * 100).toFixed(1)}%`);
+      card.style.setProperty('--my', `${(((e.clientY - b.top) / b.height) * 100).toFixed(1)}%`);
     });
   });
 }
@@ -353,6 +498,7 @@ const editor = (() => {
         ['li', '字母鍵　　看那個鍵帽代表的技能'],
         ['li', '1 2 3 4 0  研究、經歷、作品、聯絡、頁首'],
         ['li', ': 或 /　　開指令列，例如 :theme、:e awards、:sound、:blog'],
+        ['li', ':fx　　　 開關首屏的背景動畫'],
         ['li', 'Ctrl K　　搜尋想去的地方或作品'],
         ['blank'],
         ['h2', '這個視窗（先點一下）'],
@@ -497,9 +643,10 @@ function toggleTheme(e) {
     root.classList.add('switching');
     setTimeout(() => root.classList.remove('switching'), 80);
     root.dataset.theme = next;
-    document.querySelector('meta[name="theme-color"]').content = next === 'dark' ? '#0a0f22' : '#f6f8fc';
+    document.querySelector('meta[name="theme-color"]').content = next === 'dark' ? '#0c0c0b' : '#f4f1ea';
     try { localStorage.setItem('theme', next); } catch {}
     flow.recolor();
+    fx.recolor();
   };
   if (!document.startViewTransition || reduced) return apply();
   const x = e?.clientX || innerWidth - 40, y = e?.clientY || 28;
@@ -528,6 +675,7 @@ const cmds = [
   ...(contactOn ? [{ label: '寫信給我', alias: ':mail', run: () => { goTo('contact'); $('contact-form').elements.namedItem('name').focus({ preventScroll: true }); } }] : []),
   { label: '切換深色／淺色', alias: ':theme', run: () => toggleTheme() },
   { label: '按鍵音效 開／關', alias: ':sound', run: toggleSound },
+  { label: '背景動畫 開／關', alias: ':fx', run: () => { const on = fx.toggle(); say(on === null ? '這個裝置或視窗寬度不會顯示背景動畫' : `背景動畫：${on ? '開' : '關'}`); } },
   { label: '快捷鍵說明', alias: ':help', run: () => editor.show(editor.files.length - 1) },
   ...me.links.map((l) => ({ label: `開啟 ${l.label}`, hint: '連結', run: visit(l.href) })),
   ...research.map((r) => ({ label: r.title, hint: `repo · ${r.link.label}`, run: visit(r.link.href) })),
