@@ -56,6 +56,26 @@ sudo bash monitor/install.sh
    - 通知方式（email 或 Telegram）在 Settings → Notifications 設定，並套用到上面所有監控。
 5. **填入 Push 網址**：把兩個 Push 監控頁面顯示的網址（`http://127.0.0.1:3001/api/push/<token>`，不含 `?` 後面）貼進 `/etc/chijiun-monitor.env` 的 `IDLE_PUSH_URL`、`SYNC_PUSH_URL`。timer 每次執行都會重新讀檔，不用重啟。
 
+## 其他指標：Docker 容器與 Caddy
+
+Netdata 裝好後就會自動收集這些，不用另外安裝收集器（在 Netdata v2.12.3、Caddy v2.11.9 實測）：
+
+- **Docker 容器**：每個容器各自的 CPU、記憶體、網路、磁碟 I/O（圖表前綴 `cgroup_<容器名>`），以及容器狀態與健康檢查（`docker_local`）。新容器啟動後會自動出現。
+- **Caddy 程序與上游**：Caddy 本身的記憶體、CPU、goroutine，以及各個 `reverse_proxy` 上游是否健康。Netdata 自動讀取 Caddy admin API 的 `http://127.0.0.1:2019/metrics`。
+- **Caddy 請求量、延遲、狀態碼（依網域分開）**：這個**預設沒有**，要在 `/etc/caddy/Caddyfile` 最前面加上全域設定，再 `sudo systemctl reload caddy`：
+
+  ```caddyfile
+  {
+  	metrics {
+  		per_host
+  	}
+  }
+  ```
+
+  `per_host` 會讓指標帶上網域標籤，才分得出 `chijiun.com`、`stats`、`monitor` 各自的流量。Caddy 只會為 Caddyfile 裡設定過的網域建立標籤，亂打 Host 標頭的流量歸在 `_other`，不會讓圖表數量無限增加。每多一種狀態碼或 HTTP 方法就會多幾張圖。
+
+在 Netdata 的搜尋框輸入 `caddy`、`cgroup` 或 `docker` 找對應的圖表。
+
 ## 驗證
 
 ```bash
