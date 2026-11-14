@@ -11,6 +11,7 @@
     --ok: #1a7f46; --ok-bg: #e4f5ea; --warn: #9a6700; --warn-bg: #fff3d1;
     --bad: #c62828; --bad-bg: #fde7e7; --idle: #5d6673; --idle-bg: #eceff3;
     --bar: #d8dee6; --accent: #2457d6;
+    --c1: #2457d6; --c2: #d96b00; --c3: #1a7f46; --c4: #a8329a; --c5: #00808a; --c6: #8a6d00;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -18,6 +19,7 @@
       --ok: #55d28a; --ok-bg: #12301f; --warn: #f0c14b; --warn-bg: #352b0d;
       --bad: #ff7b7b; --bad-bg: #3a1717; --idle: #98a2b0; --idle-bg: #20262e;
       --bar: #2a313a; --accent: #7aa2ff;
+      --c1: #7aa2ff; --c2: #ffa94d; --c3: #55d28a; --c4: #e58bd9; --c5: #4dd0d9; --c6: #e0c04a;
     }
   }
   :root[data-theme="dark"] {
@@ -25,20 +27,19 @@
     --ok: #55d28a; --ok-bg: #12301f; --warn: #f0c14b; --warn-bg: #352b0d;
     --bad: #ff7b7b; --bad-bg: #3a1717; --idle: #98a2b0; --idle-bg: #20262e;
     --bar: #2a313a; --accent: #7aa2ff;
+    --c1: #7aa2ff; --c2: #ffa94d; --c3: #55d28a; --c4: #e58bd9; --c5: #4dd0d9; --c6: #e0c04a;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 16px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", sans-serif; }
-  main { max-width: 880px; margin: 0 auto; padding: 24px 16px 56px; }
+  main { max-width: 920px; margin: 0 auto; padding: 24px 16px 56px; }
   h1 { font-size: 1.5rem; margin: 0; }
-  h2 { font-size: 1.1rem; margin: 32px 0 4px; }
+  h2 { font-size: 1.15rem; margin: 36px 0 4px; }
   .sub { color: var(--muted); font-size: .9rem; margin: 4px 0 0; }
   .hint { color: var(--muted); font-size: .9rem; margin: 0 0 12px; }
-  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
   .banner { margin-top: 16px; padding: 16px 18px; border-radius: 12px; font-weight: 600; font-size: 1.1rem;
     background: var(--idle-bg); color: var(--idle); }
   .banner.ok { background: var(--ok-bg); color: var(--ok); }
-  .banner.warn { background: var(--warn-bg); color: var(--warn); }
   .banner.bad { background: var(--bad-bg); color: var(--bad); }
   .banner small { display: block; font-weight: 400; margin-top: 2px; opacity: .9; }
   .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
@@ -50,16 +51,15 @@
   .pill.warn { background: var(--warn-bg); color: var(--warn); }
   .pill.bad { background: var(--bad-bg); color: var(--bad); }
   .meaning { color: var(--muted); font-size: .85rem; margin: 6px 0 0; }
-  .num { font-size: 1.6rem; font-weight: 700; margin: 6px 0 2px; }
-  .num small { font-size: .9rem; font-weight: 400; color: var(--muted); }
   .bar { position: relative; height: 10px; border-radius: 999px; background: var(--bar); overflow: hidden; }
-  .bar > i { display: block; height: 100%; border-radius: 999px; background: var(--ok); width: 0; transition: width .4s; }
+  .bar > i { display: block; height: 100%; border-radius: 999px; background: var(--ok); transition: width .4s; }
   .bar > i.warn { background: var(--warn); } .bar > i.bad { background: var(--bad); }
   .scale { position: relative; height: 10px; border-radius: 999px; background: var(--bar); }
-  .scale > i { display: block; height: 100%; border-radius: 999px; background: var(--accent); width: 0; transition: width .4s; }
+  .scale > i { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width .4s; }
   .scale > b { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--bad); }
   .row { margin: 14px 0; }
   .row .label { display: flex; justify-content: space-between; gap: 8px; font-size: .95rem; margin-bottom: 6px; }
+  .muted { color: var(--muted); }
   .links { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: 8px; }
   a.big { display: block; text-decoration: none; color: inherit; background: var(--card);
     border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
@@ -71,66 +71,173 @@
   dl { margin: 10px 0 0; } dt { font-weight: 600; margin-top: 10px; } dd { margin: 2px 0 0; color: var(--muted); font-size: .92rem; }
   .err { color: var(--bad); font-size: .9rem; }
   footer { margin-top: 32px; color: var(--muted); font-size: .85rem; }
-  @media (max-width: 480px) { .num { font-size: 1.4rem; } }
+
+  /* 時間範圍選擇與趨勢圖 */
+  .range { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); margin: 4px 0 8px; }
+  .range button { appearance: none; border: 0; background: transparent; color: var(--text); font: inherit; font-size: .9rem;
+    padding: 6px 14px; cursor: pointer; border-right: 1px solid var(--line); }
+  .range button:last-child { border-right: 0; }
+  .range button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .range button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .chart { position: relative; }
+  .chart svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+  .chart text { fill: var(--muted); font-size: 11px; }
+  .chart .grid-line { stroke: var(--line); stroke-width: 1; }
+  .chart .cursor { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+  .chart path { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; font-size: .88rem; }
+  .legend span { white-space: nowrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .tip { position: absolute; pointer-events: none; z-index: 2; background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 10px; font-size: .82rem; box-shadow: 0 4px 14px rgba(0,0,0,.18); display: none; white-space: nowrap; }
+  .note { color: var(--muted); font-size: .85rem; margin: 0 0 8px; }
+  .stack { display: grid; gap: 12px; }
+  @media (max-width: 480px) { .card { padding: 12px; } }
 </style>
 </head>
 <body>
 <main>
   <header>
-    <div>
-      <h1>VM 監控總覽</h1>
-      <p class="sub" id="updated">讀取中…</p>
-    </div>
+    <h1>VM 監控總覽</h1>
+    <p class="sub" id="updated">讀取中…</p>
   </header>
 
   <div class="banner" id="banner">讀取中…</div>
 
-  <h2>服務有沒有活著</h2>
-  <p class="hint">每 10 秒從 VM 本機檢查一次。「正常」代表對方有回應，而且回應內容是對的。</p>
+  <h2>1. 服務有沒有活著</h2>
+  <p class="hint">每 10 秒從 VM 本機檢查一次。「正常」代表對方有回應，而且回應內容是對的。卡片下方的「正常率」是你選的時間範圍內，被檢查到正常的比例。</p>
   <div class="grid" id="services"></div>
 
-  <h2>VM 用量</h2>
-  <p class="hint">這台是 Oracle 免費的 ARM 主機（約 12 GB 記憶體）。數字越低代表越空閒，不是壞事。</p>
+  <h2>2. VM 現在的用量</h2>
+  <p class="hint">這台是 Oracle 免費的 ARM 主機。數字越低代表越空閒，不是壞事。</p>
   <div class="card" id="usage">讀取中…</div>
 
-  <h2>會不會被 Oracle 回收</h2>
+  <h2>3. 會不會被 Oracle 回收</h2>
   <p class="hint">Oracle 的規則：連續 7 天，CPU、記憶體、網路<strong>三項都低於 20%</strong>，閒置的免費主機可能被回收。只要<strong>任何一項</strong>高於 20% 就不會被判定閒置。</p>
   <div class="card" id="idle">讀取中…</div>
 
-  <h2>要看細節，點這裡</h2>
-  <p class="hint">兩個工具各有擅長的事，這個總覽頁只是把最重要的整理成白話。</p>
+  <h2>4. 一段時間內的變化（趨勢圖）</h2>
+  <p class="hint">想知道「剛剛是不是變慢了」「昨天晚上有沒有異常」，看這裡。把滑鼠移到圖上（手機是手指按住）可以看到那個時間點的數字。</p>
+  <div class="range" role="group" aria-label="時間範圍" id="range"></div>
+  <p class="note" id="coverage"></p>
+  <div class="stack" id="charts"></div>
+
+  <h2>5. 要看更細的細節，點這裡</h2>
+  <p class="hint">這個頁面是把最重要的整理成白話。更細的內容在下面兩個工具。</p>
   <div class="links">
     <a class="big" href="/">
       <strong>Uptime Kuma →</strong>
-      <span>網站「過去」有沒有掛過、每次回應多久、憑證何時到期。通知（掛掉時寄信或訊息給你）也在這裡設定。</span>
+      <span>網站「過去」有沒有掛過、每次回應多久、憑證何時到期。通知（掛掉時傳訊息給你）也在這裡設定。</span>
     </a>
     <a class="big" href="/netdata/">
       <strong>Netdata →</strong>
-      <span>VM 的詳細圖表：每個容器各用多少 CPU 與記憶體、網路流量、磁碟、Caddy 的請求量。要查「為什麼變慢」看這裡。</span>
+      <span>VM 的詳細圖表：每個程式用多少資源、網路、磁碟、網站流量，每秒一筆。要查「為什麼變慢」看這裡。</span>
     </a>
   </div>
 
   <details>
     <summary>名詞白話對照</summary>
     <dl>
-      <dt>CPU 使用率</dt><dd>處理器忙碌的程度。一直接近 100% 才需要擔心。</dd>
+      <dt>CPU 使用率</dt><dd>處理器忙碌的程度。100% 代表一顆核心全滿；長時間接近滿載才需要擔心。</dd>
       <dt>記憶體使用率</dt><dd>程式實際占用的記憶體，不含系統拿來加速的快取，那部分需要時會自動讓出來。</dd>
       <dt>第 95 百分位（p95）</dt><dd>把 7 天的數字由小排到大，取第 95% 的位置，意思是「幾乎整段時間的忙碌程度，忽略最忙的 5%」。Oracle 用它判斷是否閒置。</dd>
       <dt>就緒檢查（ready）</dt><dd>ncu-backend 的「檢索」和「PDF 對話」兩個子系統都準備好了，才算就緒。</dd>
+      <dt>回應時間</dt><dd>檢查程式向服務打招呼，到收到回覆花的時間。突然變很長，通常代表服務忙不過來。</dd>
+      <dt>正常率</dt><dd>在選定的時間範圍內，每次檢查都正常的比例。100% 代表一次都沒有失敗。</dd>
     </dl>
   </details>
 
-  <footer>
-    只有登入的人看得到這個頁面。原始碼：repo 的 <code>monitor/hub/index.html</code>。
-  </footer>
+  <footer>只有登入的人看得到這個頁面。原始碼：repo 的 <code>monitor/hub/index.html</code>。</footer>
 </main>
+<div class="tip" id="tip"></div>
 
 <script>
 (() => {
   "use strict";
   const API = "/hub/api/v1/data";
+  const CONTAINERS = ["stats-ai", "ncu-backend", "ncu-tunnel", "uptime-kuma"];
+  const SITES = [["chijiun_com", "chijiun.com 個人網站"], ["stats_chijiun_com", "stats.chijiun.com"], ["monitor_chijiun_com", "monitor.chijiun.com（監控站）"]];
+  const JOBS = [["chijiun_site", "個人網站"], ["stats_ai_healthz", "stats-ai"], ["ncu_backend_health", "ncu-backend"], ["ncu_backend_ready", "ncu-backend 就緒"]];
+  const RANGES = {
+    "1h": { label: "1 小時", after: -3600, points: 60, date: false },
+    "6h": { label: "6 小時", after: -21600, points: 72, date: false },
+    "24h": { label: "24 小時", after: -86400, points: 96, date: false },
+    "7d": { label: "7 天", after: -604800, points: 84, date: true },
+  };
+  const REASONS = { no_connection: "連不上", timeout: "回應逾時", bad_content: "回應內容不對",
+    bad_status: "狀態碼不對", redirect: "被轉址", bad_header: "標頭不對" };
+
+  // ---------- 純函式（不碰 DOM，可單獨測試） ----------
+  const sum = (o) => Object.values(o).reduce((a, b) => a + (b || 0), 0);
+  const pct = (n) => (Math.round(n * 10) / 10).toFixed(1);
+  const level = (v, warn, bad) => (v >= bad ? "bad" : v >= warn ? "warn" : "ok");
+
+  // Netdata 的 JSON：labels[0] 是 time，data 預設「新的在前」，所以一律排成由舊到新。
+  function rows(d) {
+    if (!d || !Array.isArray(d.data) || !d.data.length) return [];
+    const labels = d.labels.slice(1);
+    return d.data.map((r) => {
+      const v = {};
+      labels.forEach((l, i) => { v[l] = r[i + 1] == null ? null : Number(r[i + 1]); });
+      return { t: r[0], v };
+    }).sort((a, b) => a.t - b.t);
+  }
+  function firstRow(d) {
+    const r = rows(d);
+    if (!r.length) return null;
+    const o = {};
+    Object.entries(r[r.length - 1].v).forEach(([k, x]) => { o[k] = x == null ? 0 : x; });
+    return o;
+  }
+  function niceMax(v, min) {
+    const target = Math.max(v, min);
+    const mag = Math.pow(10, Math.floor(Math.log10(target)));
+    for (const m of [1, 2, 5, 10]) if (m * mag >= target) return m * mag;
+    return 10 * mag;
+  }
+  function segments(points, x, y) { // 遇到 null 就斷線
+    const paths = []; let cur = "";
+    for (const p of points) {
+      if (p.v == null) { if (cur) { paths.push(cur); cur = ""; } continue; }
+      cur += (cur ? "L" : "M") + x(p.t).toFixed(1) + " " + y(p.v).toFixed(1);
+    }
+    if (cur) paths.push(cur);
+    return paths;
+  }
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function fmtTime(sec, withDate) {
+    const d = new Date(sec * 1000);
+    const hm = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+    return withDate ? pad2(d.getMonth() + 1) + "/" + pad2(d.getDate()) + " " + hm : hm;
+  }
+  function drawChart(series, opt) {
+    const W = 640, H = 210, L = 46, R = 10, T = 12, B = 24;
+    const all = series.flatMap((s) => s.pts).filter((p) => p.v != null);
+    if (!all.length) return null;
+    const tmin = Math.min(...all.map((p) => p.t)), tmax = Math.max(...all.map((p) => p.t));
+    const vmax = niceMax(Math.max(...all.map((p) => p.v)) * 1.15, opt.minMax || 1);
+    const x = (t) => L + ((t - tmin) / (tmax - tmin || 1)) * (W - L - R);
+    const y = (v) => H - B - (v / vmax) * (H - T - B);
+    const grid = [0, 0.5, 1].map((f) => {
+      const v = vmax * f, yy = y(v);
+      return `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 6}" y="${yy + 4}" text-anchor="end">${opt.axis(v)}</text>`;
+    }).join("");
+    const xl = [[tmin, "start"], [(tmin + tmax) / 2, "middle"], [tmax, "end"]].map(([t, a], i) =>
+      `<text x="${[L, (L + W - R) / 2, W - R][i]}" y="${H - 6}" text-anchor="${a}">${fmtTime(t, opt.date)}</text>`).join("");
+    const lines = series.map((s) => segments(s.pts, x, y).map((d) => `<path d="${d}" style="stroke:var(--c${s.c})"/>`).join("")).join("");
+    return { svg: `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opt.title}">${grid}${xl}${lines}<line class="cursor" y1="${T}" y2="${H - B}" x1="-10" x2="-10"/></svg>`,
+      tmin, tmax, L, R, W };
+  }
+  const api = { rows, firstRow, niceMax, segments, drawChart, fmtTime, sum };
+  if (typeof module !== "undefined" && module.exports) { module.exports = api; }
+  if (typeof document === "undefined") return;
+
+  // ---------- 以下是頁面行為 ----------
   const $ = (id) => document.getElementById(id);
   let authFailed = false;
+  let range = "6h";
+  try { const saved = localStorage.getItem("hub-range"); if (saved && RANGES[saved]) range = saved; } catch (e) {}
+  const chartStore = new Map();
 
   async function nd(query) {
     const r = await fetch(`${API}?${query}&format=json`, { cache: "no-store", credentials: "same-origin" });
@@ -138,95 +245,81 @@
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
   }
-  function firstRow(d) {
-    if (!d || !d.data || !d.data.length) return null;
-    const o = {};
-    d.labels.forEach((l, i) => { if (i > 0) o[l] = Number(d.data[0][i]) || 0; });
-    return o;
-  }
-  const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
-  const pct = (n) => (Math.round(n * 10) / 10).toFixed(1);
-  const level = (v, warn, bad) => (v >= bad ? "bad" : v >= warn ? "warn" : "ok");
+  const rangeQuery = () => `after=${RANGES[range].after}&points=${RANGES[range].points}&group=average`;
 
-  const REASONS = { no_connection: "連不上", timeout: "回應逾時", bad_content: "回應內容不對",
-    bad_status: "狀態碼不對", redirect: "被轉址", bad_header: "標頭不對" };
-
+  // ----- 服務狀態 -----
   async function check(job) {
     try {
       const st = firstRow(await nd(`chart=httpcheck_${job}.request_status&after=-30&points=1&group=average`));
       if (!st) return { ok: null, why: "沒有資料" };
+      let up = null;
+      try { const u = firstRow(await nd(`chart=httpcheck_${job}.request_status&after=${RANGES[range].after}&points=1&group=average`)); up = u ? u.success * 100 : null; } catch (e) {}
       if (st.success >= 0.5) {
         let ms = null;
         try { const t = firstRow(await nd(`chart=httpcheck_${job}.response_time&after=-30&points=1&group=average`)); ms = t && t.time; } catch (e) {}
-        return { ok: true, ms };
+        return { ok: true, ms, up };
       }
       const key = Object.keys(REASONS).find((k) => st[k] >= 0.5);
-      return { ok: false, why: REASONS[key] || "異常" };
+      return { ok: false, why: REASONS[key] || "異常", up };
     } catch (e) { return { ok: null, why: authFailed ? "請重新登入" : "讀取失敗" }; }
   }
-
   const SERVICES = [
-    { name: "個人網站", url: "chijiun.com", jobs: ["chijiun_site"], meaning: "代表：網站打得開，而且內容是對的。" },
-    { name: "stats-ai", url: "stats.chijiun.com", jobs: ["stats_ai_healthz"], meaning: "代表：統計 AI 服務有回應。" },
-    { name: "ncu-backend", url: "ncu-backend", jobs: ["ncu_backend_health", "ncu_backend_ready"], meaning: "代表：服務活著，而且檢索、PDF 對話都準備好了。" },
+    { name: "個人網站", jobs: ["chijiun_site"], meaning: "代表：網站打得開，而且內容是對的。" },
+    { name: "stats-ai", jobs: ["stats_ai_healthz"], meaning: "代表：統計 AI 服務有回應。" },
+    { name: "ncu-backend", jobs: ["ncu_backend_health", "ncu_backend_ready"], meaning: "代表：服務活著，而且檢索、PDF 對話都準備好了。" },
   ];
-
   async function renderServices() {
     const results = await Promise.all(SERVICES.map(async (s) => ({ s, r: await Promise.all(s.jobs.map(check)) })));
     const problems = [];
-    const html = results.map(({ s, r }) => {
-      const bad = r.find((x) => x.ok === false);
-      const unknown = r.find((x) => x.ok === null);
+    $("services").innerHTML = results.map(({ s, r }) => {
+      const bad = r.find((x) => x.ok === false), unknown = r.find((x) => x.ok === null);
       let cls = "ok", label = "正常", detail = "";
       if (bad) { cls = "bad"; label = "異常"; detail = bad.why; problems.push(`${s.name}：${bad.why}`); }
       else if (unknown) { cls = ""; label = "未知"; detail = unknown.why; }
-      else { const ms = r[0].ms; detail = ms != null ? `回應 ${Math.round(ms)} 毫秒` : ""; }
+      else if (r[0].ms != null) detail = `回應 ${Math.round(r[0].ms)} 毫秒`;
+      const ups = r.map((x) => x.up).filter((u) => u != null);
+      const up = ups.length ? Math.min(...ups) : null;
+      const upText = up == null ? "" : `<br>${RANGES[range].label}內正常率 <strong>${up >= 99.95 ? "100" : up.toFixed(1)}%</strong>`;
       return `<div class="card"><h3>${s.name}<span class="pill ${cls}">${label}</span></h3>
-        <p class="meaning">${detail ? detail + "。" : ""}${s.meaning}</p></div>`;
+        <p class="meaning">${detail ? detail + "。" : ""}${s.meaning}${upText}</p></div>`;
     }).join("");
-    $("services").innerHTML = html;
     return problems;
   }
 
+  // ----- 目前用量 -----
   async function renderUsage() {
     const out = [];
     try {
-      const cpu = sum(firstRow(await nd("chart=system.cpu&after=-30&points=1&group=average")) || {});
-      out.push({ label: "CPU", v: cpu, note: "處理器忙碌程度" });
+      out.push({ label: "CPU", v: sum(firstRow(await nd("chart=system.cpu&after=-30&points=1&group=average")) || {}), note: "處理器忙碌程度", warn: 70, bad: 90 });
       const ram = firstRow(await nd("chart=system.ram&after=-30&points=1&group=average")) || {};
       const total = (ram.free || 0) + (ram.used || 0) + (ram.cached || 0) + (ram.buffers || 0);
-      out.push({ label: "記憶體", v: total ? (100 * ram.used) / total : 0,
+      out.push({ label: "記憶體", v: total ? (100 * ram.used) / total : 0, warn: 70, bad: 90,
         note: `程式占用 ${(ram.used / 1024).toFixed(1)} GB／共約 ${(total / 1024).toFixed(1)} GB` });
       const dk = firstRow(await nd("chart=" + encodeURIComponent("disk_space./") + "&after=-60&points=1&group=average")) || {};
-      // Netdata 的維度名稱就是「reserved for root」（有空格），已在 VM 上實測
+      // Netdata 的維度名稱就是「reserved for root」（有空格）
       const dt = (dk.avail || 0) + (dk.used || 0) + (dk["reserved for root"] || 0);
-      out.push({ label: "磁碟", v: dt ? (100 * dk.used) / dt : 0, note: `已用 ${(dk.used || 0).toFixed(1)} GB／共約 ${dt.toFixed(1)} GB` });
+      out.push({ label: "磁碟", v: dt ? (100 * dk.used) / dt : 0, warn: 75, bad: 90,
+        note: `已用 ${(dk.used || 0).toFixed(1)} GB／共約 ${dt.toFixed(1)} GB` });
     } catch (e) {
       $("usage").innerHTML = `<span class="err">${authFailed ? "登入已過期，請重新整理頁面。" : "讀不到用量資料。"}</span>`;
       return [];
     }
-    $("usage").innerHTML = out.map((o) => {
-      const cls = level(o.v, o.label === "磁碟" ? 75 : 70, o.label === "磁碟" ? 90 : 90);
-      return `<div class="row"><div class="label"><span>${o.label}　<span style="color:var(--muted)">${o.note}</span></span><strong>${pct(o.v)}%</strong></div>
-        <div class="bar"><i class="${cls}" style="width:${Math.min(100, o.v)}%"></i></div></div>`;
-    }).join("");
-    return out.filter((o) => o.v >= (o.label === "磁碟" ? 90 : 90)).map((o) => `${o.label}使用率 ${pct(o.v)}%`);
+    $("usage").innerHTML = out.map((o) => `<div class="row"><div class="label"><span>${o.label}　<span class="muted">${o.note}</span></span><strong>${pct(o.v)}%</strong></div>
+        <div class="bar"><i class="${level(o.v, o.warn, o.bad)}" style="width:${Math.min(100, o.v)}%"></i></div></div>`).join("");
+    return out.filter((o) => o.v >= o.bad).map((o) => `${o.label}使用率 ${pct(o.v)}%`);
   }
 
+  // ----- 閒置回收風險 -----
   async function renderIdle() {
     let s;
     try {
       const r = await fetch("/hub/data/summary.json", { cache: "no-store", credentials: "same-origin" });
       if (!r.ok) throw new Error(r.status);
       s = await r.json();
-    } catch (e) {
-      $("idle").innerHTML = `<span class="err">讀不到閒置風險資料（取樣程式可能還沒跑）。</span>`;
-      return { level: "", text: "" };
-    }
+    } catch (e) { $("idle").innerHTML = `<span class="err">讀不到閒置風險資料（取樣程式可能還沒跑）。</span>`; return ""; }
     const official = s.official_percent || 20;
-    if (!s.samples) { $("idle").textContent = "資料累積中，請稍後。"; return { level: "", text: "" }; }
-    const hours = s.days * 24;
-    const age = Math.round(Date.now() / 1000 - s.updated);
+    if (!s.samples) { $("idle").textContent = "資料累積中，請稍後。"; return ""; }
+    const hours = s.days * 24, age = Math.round(Date.now() / 1000 - s.updated);
     const items = [["CPU", s.cpu_p95], ["記憶體", s.mem_p95], ["網路", s.net_p95]];
     const allLow = items.every(([, v]) => v < official);
     let cls, label, why;
@@ -235,28 +328,123 @@
     else if (allLow) { cls = "warn"; label = "略高於警戒線"; why = "三項都低於 20%，但還沒到警戒線；持續這樣超過 7 天就有風險。"; }
     else { cls = "ok"; label = "安全"; why = "至少有一項高於 20%，不會被判定為閒置。"; }
     const days = s.days >= 7 ? "滿 7 天" : `已累積 ${s.days.toFixed(1)} 天`;
-    $("idle").innerHTML = `<h3 style="margin:0 0 8px">${label ? `<span class="pill ${cls}">${label}</span>` : ""}</h3>
+    $("idle").innerHTML = `<h3 style="margin:0 0 8px"><span class="pill ${cls}">${label}</span></h3>
       <p class="meaning" style="margin:0 0 8px">${why}（${days}的資料）</p>` +
-      items.map(([n, v]) => `<div class="row"><div class="label"><span>${n}　<span style="color:var(--muted)">近 7 天第 95 百分位</span></span><strong>${v.toFixed(1)}%</strong></div>
+      items.map(([n, v]) => `<div class="row"><div class="label"><span>${n}　<span class="muted">近 7 天第 95 百分位</span></span><strong>${v.toFixed(1)}%</strong></div>
         <div class="scale"><i style="width:${Math.min(100, (v / 40) * 100)}%"></i><b style="left:${(official / 40) * 100}%" title="Oracle 門檻 ${official}%"></b></div></div>`).join("") +
       `<p class="meaning">紅線是 Oracle 的 ${official}% 門檻（刻度 0–40%）。數字來自 VM 內部量測，不是 Oracle 的官方數字，只能當預警。${age > 300 ? `<span class="err">（取樣已 ${Math.round(age / 60)} 分鐘沒更新）</span>` : ""}</p>`;
-    return { level: cls, text: cls === "bad" ? "閒置回收風險偏高" : "" };
+    return cls === "bad" ? "閒置回收風險偏高" : "";
+  }
+
+  // ----- 趨勢圖 -----
+  const safe = (p) => p.catch(() => null);
+  const mapRows = (d, f) => rows(d).map((r) => ({ t: r.t, v: f(r.v) }));
+  const CHARTS = [
+    { id: "cpu", title: "CPU 忙碌程度", hint: "越低越空閒。長時間接近 100% 才需要擔心；短暫的尖峰是正常的。", minMax: 10, unit: "%",
+      load: async () => [{ name: "整台 VM", c: 1, pts: mapRows(await nd(`chart=system.cpu&${rangeQuery()}`), sum) }] },
+    { id: "mem", title: "記憶體使用率", hint: "程式實際占用的比例（不含系統快取）。", minMax: 10, unit: "%",
+      load: async () => [{ name: "整台 VM", c: 1, pts: mapRows(await nd(`chart=system.ram&${rangeQuery()}`), (v) => {
+        const t = (v.free || 0) + (v.used || 0) + (v.cached || 0) + (v.buffers || 0); return t ? (100 * (v.used || 0)) / t : null; }) }] },
+    { id: "net", title: "網路流量", hint: "越高代表越多人在存取。下載＝別人從這台拿資料，上傳＝這台送出去的資料。", minMax: 10, unit: "KB/s",
+      load: async () => { const d = await nd(`chart=system.net&${rangeQuery()}`);
+        return [{ name: "接收", c: 1, pts: mapRows(d, (v) => v.InOctets == null ? null : Math.abs(v.InOctets) / 8) },
+                { name: "送出", c: 2, pts: mapRows(d, (v) => v.OutOctets == null ? null : Math.abs(v.OutOctets) / 8) }]; } },
+    { id: "ccpu", title: "哪個程式最吃 CPU", hint: "各個容器各占多少處理器。100% 代表用滿一顆核心。", minMax: 5, unit: "%",
+      load: async () => (await Promise.all(CONTAINERS.map(async (c, i) => { const d = await safe(nd(`chart=cgroup_${c}.cpu&${rangeQuery()}`));
+        return d && { name: c, c: i + 1, pts: mapRows(d, sum) }; }))).filter(Boolean) },
+    { id: "cmem", title: "哪個程式最吃記憶體", hint: "各個容器占用的記憶體。突然一直往上爬，可能是程式有問題。", minMax: 50, unit: "MB",
+      load: async () => (await Promise.all(CONTAINERS.map(async (c, i) => { const d = await safe(nd(`chart=cgroup_${c}.mem_usage&${rangeQuery()}`));
+        return d && { name: c, c: i + 1, pts: mapRows(d, (v) => v.ram) }; }))).filter(Boolean) },
+    { id: "req", title: "網站流量（每分鐘請求數）", hint: "每個網域每分鐘被訪問幾次，包含機器人與監控自己的檢查。", minMax: 5, unit: "次/分",
+      load: async () => (await Promise.all(SITES.map(async ([h, n], i) => {
+        const d = await safe(nd(`chart=${encodeURIComponent(`prometheus_caddy_local.caddy_http_requests_total-handler=subroute-host=${h}-server=srv0`)}&${rangeQuery()}`));
+        return d && { name: n, c: i + 1, pts: mapRows(d, (v) => v.caddy_http_requests_total == null ? null : v.caddy_http_requests_total * 60) }; }))).filter(Boolean) },
+    { id: "rt", title: "服務回應時間", hint: "越低越快。突然變很長，通常代表服務忙不過來或有問題。", minMax: 20, unit: "毫秒",
+      load: async () => (await Promise.all(JOBS.map(async ([j, n], i) => { const d = await safe(nd(`chart=httpcheck_${j}.response_time&${rangeQuery()}`));
+        return d && { name: n, c: i + 1, pts: mapRows(d, (v) => v.time) }; }))).filter(Boolean) },
+  ];
+  const AXIS = { "%": (v) => (v >= 10 ? Math.round(v) : v.toFixed(1)) + "%", "KB/s": (v) => v >= 1000 ? (v / 1000).toFixed(1) + "MB/s" : Math.round(v) + "KB/s",
+    "MB": (v) => Math.round(v) + "MB", "次/分": (v) => Math.round(v), "毫秒": (v) => Math.round(v) + "ms" };
+  const VAL = { "%": (v) => pct(v) + "%", "KB/s": (v) => (v >= 1000 ? (v / 1000).toFixed(2) + " MB/秒" : v.toFixed(1) + " KB/秒"),
+    "MB": (v) => v.toFixed(0) + " MB", "次/分": (v) => v.toFixed(1) + " 次/分", "毫秒": (v) => v.toFixed(0) + " 毫秒" };
+
+  function buildShell() {
+    $("charts").innerHTML = CHARTS.map((c) => `<div class="card"><h3>${c.title}</h3><p class="meaning">${c.hint}</p>
+      <div class="chart" id="chart-${c.id}"><span class="muted">讀取中…</span></div><div class="legend" id="legend-${c.id}"></div></div>`).join("");
+  }
+  async function renderCharts() {
+    let minCover = 1;
+    await Promise.all(CHARTS.map(async (c) => {
+      const box = $("chart-" + c.id), legend = $("legend-" + c.id);
+      let series;
+      try { series = (await c.load()).filter((s) => s.pts.length); }
+      catch (e) { box.innerHTML = `<span class="err">${authFailed ? "登入已過期，請重新整理頁面。" : "讀不到資料。"}</span>`; legend.innerHTML = ""; return; }
+      const res = series.length && drawChart(series, { title: c.title, minMax: c.minMax, axis: AXIS[c.unit], date: RANGES[range].date });
+      if (!res) { box.innerHTML = `<span class="muted">這段時間沒有資料。</span>`; legend.innerHTML = ""; return; }
+      const want = -RANGES[range].after;
+      minCover = Math.min(minCover, (res.tmax - res.tmin) / want);
+      box.innerHTML = res.svg;
+      chartStore.set(c.id, { series, res, unit: c.unit });
+      legend.innerHTML = series.map((s) => {
+        const last = [...s.pts].reverse().find((p) => p.v != null);
+        return `<span><i style="background:var(--c${s.c})"></i>${s.name}${last ? `　目前 <strong>${VAL[c.unit](last.v)}</strong>` : ""}</span>`;
+      }).join("");
+      bindTip(box, c.id);
+    }));
+    $("coverage").textContent = minCover < 0.9
+      ? `Netdata 只收集了約 ${Math.max(1, Math.round(minCover * -RANGES[range].after / 3600))} 小時的資料（VM 上的 Netdata 是最近才安裝的），所以「${RANGES[range].label}」的圖只會畫到這麼長。` : "";
+  }
+  function bindTip(box, id) {
+    const svg = box.querySelector("svg"), tip = $("tip"), cur = svg.querySelector(".cursor");
+    const move = (ev) => {
+      const st = chartStore.get(id); if (!st) return;
+      const rect = svg.getBoundingClientRect(), { res } = st;
+      const px = ((ev.clientX - rect.left) / rect.width) * res.W;
+      const t = res.tmin + ((px - res.L) / (res.W - res.L - res.R)) * (res.tmax - res.tmin);
+      const lines = []; let near = null;
+      st.series.forEach((s) => {
+        let best = null;
+        s.pts.forEach((p) => { if (p.v != null && (best == null || Math.abs(p.t - t) < Math.abs(best.t - t))) best = p; });
+        if (best) { near = best.t; lines.push(`<span style="color:var(--c${s.c})">●</span> ${s.name}：<strong>${VAL[st.unit](best.v)}</strong>`); }
+      });
+      if (near == null) return;
+      const nx = res.L + ((near - res.tmin) / (res.tmax - res.tmin || 1)) * (res.W - res.L - res.R);
+      cur.setAttribute("x1", nx); cur.setAttribute("x2", nx);
+      tip.innerHTML = `<div class="muted">${fmtTime(near, true)}</div>${lines.join("<br>")}`;
+      tip.style.display = "block";
+      const bx = box.getBoundingClientRect(), x = ev.clientX - bx.left;
+      tip.style.left = (x > bx.width / 2 ? Math.max(0, bx.left + x - tip.offsetWidth - 14) : bx.left + x + 14) + window.scrollX + "px";
+      tip.style.top = bx.top + window.scrollY + 8 + "px";
+    };
+    svg.addEventListener("pointermove", move);
+    svg.addEventListener("pointerdown", move);
+    svg.addEventListener("pointerleave", () => { tip.style.display = "none"; cur.setAttribute("x1", -10); cur.setAttribute("x2", -10); });
+  }
+
+  function buildRange() {
+    $("range").innerHTML = Object.entries(RANGES).map(([k, r]) => `<button type="button" data-r="${k}" aria-pressed="${k === range}">${r.label}</button>`).join("");
+    $("range").addEventListener("click", (ev) => {
+      const k = ev.target.dataset && ev.target.dataset.r; if (!k || k === range) return;
+      range = k; try { localStorage.setItem("hub-range", k); } catch (e) {}
+      $("range").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.r === range)));
+      renderServices(); renderCharts();
+    });
   }
 
   async function refresh() {
     authFailed = false;
     const [svc, use, idle] = await Promise.all([renderServices(), renderUsage(), renderIdle()]);
-    const problems = [...svc, ...use];
-    if (idle.text) problems.push(idle.text);
+    const problems = [...svc, ...use]; if (idle) problems.push(idle);
     const b = $("banner");
     if (authFailed) { b.className = "banner bad"; b.innerHTML = "登入已過期<small>請重新整理頁面並輸入帳號密碼。</small>"; }
     else if (problems.length) { b.className = "banner bad"; b.innerHTML = `有 ${problems.length} 項需要注意<small>${problems.join("；")}</small>`; }
     else { b.className = "banner ok"; b.innerHTML = "一切正常<small>服務都有回應，用量在安全範圍。</small>"; }
-    $("updated").textContent = "更新於 " + new Date().toLocaleTimeString("zh-TW", { hour12: false }) + "，每 10 秒自動更新";
+    $("updated").textContent = "更新於 " + new Date().toLocaleTimeString("zh-TW", { hour12: false }) + "，現況每 10 秒更新、趨勢圖每分鐘更新";
   }
 
-  refresh();
+  buildRange(); buildShell(); refresh(); renderCharts();
   setInterval(refresh, 10000);
+  setInterval(renderCharts, 60000);
 })();
 </script>
 </body>
