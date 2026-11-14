@@ -4,12 +4,30 @@
 
 | 網址 | 內容 | 保護方式 |
 | --- | --- | --- |
-| `monitor.chijiun.com/` | Uptime Kuma：服務是否存活、通知、閒置風險、部署同步 | Kuma 自己的登入（可再加 Cloudflare Access） |
-| `monitor.chijiun.com/netdata/` | Netdata：CPU、記憶體、磁碟、網路的即時圖表 | Caddy `basic_auth`（可再加 Cloudflare Access） |
+| `monitor.chijiun.com/hub/` | **白話總覽頁（先看這個）**：服務有沒有活著、VM 用量、會不會被 Oracle 回收，並一鍵連到下面兩個工具 | Caddy `basic_auth`（與 `/netdata/` 共用） |
+| `monitor.chijiun.com/` | Uptime Kuma：服務過去有沒有掛過、回應時間、憑證到期、通知 | Kuma 自己的登入（可再加 Cloudflare Access） |
+| `monitor.chijiun.com/netdata/` | Netdata：每個容器、網路、磁碟、Caddy 流量的詳細圖表 | Caddy `basic_auth`（可再加 Cloudflare Access） |
 
 兩個放在同一個網域。Uptime Kuma 官方不支援子路徑，所以 Kuma 放根目錄、Netdata 放 `/netdata/`，不能反過來。舊的 `netdata.chijiun.com` 只做轉址，指向 `/netdata/`。
 
 兩個服務都只聽 `127.0.0.1`（Kuma 3001、Netdata 19999），Oracle 防火牆不需要開新埠，外面只能經過 Caddy 進來。
+
+## 總覽頁（`hub/`）
+
+Kuma 與 Netdata 是給維運人員看的專業介面，不容易一眼看出「現在到底有沒有問題」。`hub/index.html` 是一個單檔的靜態頁，用白話整理最重要的三件事，並提供兩個大按鈕連到 Kuma 與 Netdata。不需要 build，也不依賴外部資源。
+
+- **服務有沒有活著**：個人網站、stats-ai、ncu-backend（含「檢索」「PDF 對話」兩個子系統是否就緒）。資料來自 Netdata 的 HTTP 檢查（`/etc/netdata/go.d/httpcheck.conf`，每 10 秒從 VM 本機檢查）。
+- **VM 用量**：CPU、記憶體、磁碟，資料來自 Netdata。
+- **會不會被 Oracle 回收**：讀 `idle-sampler.py` 輸出的摘要。它每分鐘把摘要寫到 `/run/private/chijiun-monitor/summary.json`，再由 root（`ExecStartPost=-+…`）複製到 `/run/chijiun-hub/summary.json`，因為 DynamicUser 的目錄 Caddy 讀不到。
+- 頁面每 10 秒自動更新；最上方的橫幅會彙整「一切正常」或「有 N 項需要注意」。
+
+Caddy 的路由（細節見 [`Caddyfile.snippet`](Caddyfile.snippet)）：`/hub/` 是靜態頁、`/hub/data/` 是摘要 JSON、`/hub/api/` 轉給 Netdata 的 API（路徑改寫成 `/api/`）。三者都在 `basic_auth` 後面。
+
+Kuma 本身無法加自訂連結，所以「從 Kuma 回到總覽頁」只能靠書籤，或之後在 Kuma 建一個狀態頁，把連結寫在說明裡。
+
+## 外部存活檢查（GitHub Actions）
+
+[`.github/workflows/uptime-check.yml`](../.github/workflows/uptime-check.yml) 每 10 分鐘從 GitHub 的主機（VM 之外）檢查網站與健康檢查端點，失敗時 workflow 會失敗，GitHub 會寄失敗通知。用來補上「整台 VM 停機時，VM 上的 Kuma 與 Netdata 也跟著停」的盲點。GitHub 的排程只是盡力而為，可能延遲數分鐘；Public repo 若 60 天沒有活動，排程會被自動停用。
 
 ## 監控項目
 

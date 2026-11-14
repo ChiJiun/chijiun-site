@@ -198,7 +198,8 @@
       out.push({ label: "記憶體", v: total ? (100 * ram.used) / total : 0,
         note: `程式占用 ${(ram.used / 1024).toFixed(1)} GB／共約 ${(total / 1024).toFixed(1)} GB` });
       const dk = firstRow(await nd("chart=" + encodeURIComponent("disk_space./") + "&after=-60&points=1&group=average")) || {};
-      const dt = (dk.avail || 0) + (dk.used || 0) + (dk.reserved_for_root || 0);
+      // Netdata 的維度名稱就是「reserved for root」（有空格），已在 VM 上實測
+      const dt = (dk.avail || 0) + (dk.used || 0) + (dk["reserved for root"] || 0);
       out.push({ label: "磁碟", v: dt ? (100 * dk.used) / dt : 0, note: `已用 ${(dk.used || 0).toFixed(1)} GB／共約 ${dt.toFixed(1)} GB` });
     } catch (e) {
       $("usage").innerHTML = `<span class="err">${authFailed ? "登入已過期，請重新整理頁面。" : "讀不到用量資料。"}</span>`;
