@@ -1,4 +1,4 @@
-import { me, interests, research, experience, projects, more, skills, cats, contact, repoUrl } from './data.js?v=54733223';
+import { me, interests, research, experience, projects, more, skills, cats, contact, repoUrl } from './data.js?v=8e6d4d55';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
@@ -604,12 +604,21 @@ if (contactOn) {
   const form = $('contact-form'), note = $('contact-note'), send = $('contact-send');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (send.disabled) return;
     const d = new FormData(form);
     if (d.get('botcheck')) return;
     const name = d.get('name').trim(), email = d.get('email').trim(), message = d.get('message').trim();
+    // `required` lets whitespace-only values through.
+    if (!name || !email || !message) {
+      note.textContent = '三個欄位都要填喔。';
+      return;
+    }
     const subject = `[chijiun.com] ${name} 的來信`;
+    const mailto = contact.email
+      ? `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${message}\n\n— ${name} <${email}>`)}`
+      : '';
     if (!contact.accessKey) {
-      location.href = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${message}\n\n— ${name} <${email}>`)}`;
+      location.href = mailto;
       note.textContent = '已經幫你開啟郵件程式，按下寄出就可以了。';
       return;
     }
@@ -620,13 +629,21 @@ if (contactOn) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ access_key: contact.accessKey, subject, from_name: name, name, email, message }),
+        signal: AbortSignal.timeout(15000),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.message);
+      if (!res.ok || !json.success) throw new Error(json.message);
       form.reset();
       note.textContent = '寄出了，謝謝你。我會盡快回信。';
     } catch {
-      note.textContent = '寄送失敗，請稍後再試，或改用 LinkedIn 聯絡我。';
+      // Keep what the visitor typed, and hand the same message to their own mail app.
+      if (mailto) {
+        const link = el('a', '', '改用你的郵件程式寄出');
+        link.href = mailto;
+        note.replaceChildren('寄送失敗。可以稍後再試，或', link, '（內容已經幫你帶好）。');
+      } else {
+        note.textContent = '寄送失敗，請稍後再試，或改用 LinkedIn 聯絡我。';
+      }
     } finally {
       send.disabled = false;
     }

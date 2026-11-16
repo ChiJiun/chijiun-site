@@ -19,8 +19,11 @@ export const me = {
 };
 
 // Contact form. The section stays hidden until one of these is filled in.
-// accessKey: a Web3Forms access key (the form posts there and the address stays private).
-// email: fallback that opens the visitor's mail app instead; this address becomes public.
+// accessKey: a Web3Forms access key (https://web3forms.com). The site sends the mail itself
+//   through their API to the inbox the key was created for. The key is public by design:
+//   whoever copies it can only send mail to that inbox.
+// email: shown as the direct address, and used to open the visitor's own mail app when there
+//   is no accessKey or the request fails; this address becomes public.
 export const contact = { accessKey: '', email: '0311gino@gmail.com' };
 
 export const interests = [

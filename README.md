@@ -26,6 +26,9 @@
   - 「經歷」是一個編輯器視窗：點一下之後用 `j`/`k` 移動、`h`/`l` 切換檔案、Enter 開連結。
   - `:` 或 `/` 開指令列（`:theme`、`:e awards`、`:sound`、`:fx`、`:blog`、`:help`），Ctrl K 搜尋。
 - 聯絡表單：在 `data.js` 的 `contact` 填入 Web3Forms 的 access key（或 email）後才會顯示。
+  - 有 `accessKey`：由網站直接 POST 到 Web3Forms 寄信，收件信箱是申請 key 時綁定的那個。key 本來就是公開的（別人拿到也只能寄信到那個信箱），免費方案不能限制來源網域。
+  - 沒有 `accessKey`、或寄送失敗（服務掛掉、被限流、15 秒逾時）：改用 `email` 開啟訪客自己的郵件程式，內容會先帶好。
+  - 防垃圾信：隱藏的 `botcheck` 蜜罐欄位（被勾選就不送出），加上 Web3Forms 伺服器端的垃圾信檢查。
 - `site/blog/`：文章區，一樣是純靜態、沒有 build 步驟。
   - `index.html`：文章列表。新增文章時，在 `post-list` 裡複製一個 `<li class="post-item">`。
   - `oracle-free-arm-vm.html`：文章本體，以它為範本複製即可；文章裡不要放 OCID、IP、信箱、金鑰。
