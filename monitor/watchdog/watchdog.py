@@ -128,6 +128,7 @@ def send_telegram(text):
     data = urllib.parse.urlencode({"chat_id": chat, "text": text[:3900], "disable_web_page_preview": "true"}).encode()
     try:
         urllib.request.urlopen(f"https://api.telegram.org/bot{token}/sendMessage", data=data, timeout=15).read()
+        print("已送出 Telegram：" + " | ".join(text.splitlines()[:2])[:160])   # 日誌留一筆，方便事後核對發過什麼
         return True
     except Exception as e:  # noqa: BLE001  錯誤訊息可能含 token，只印型別
         print(f"Telegram 發送失敗：{type(e).__name__}", file=sys.stderr)

@@ -161,6 +161,8 @@ journalctl -u chijiun-service-inventory.service -n 5 --no-pager
 python3 -m json.tool /run/chijiun-hub/services.json | head -40
 # 小主機：有沒有拉到清單（每分鐘一行「服務清單：正常」）
 journalctl -u chijiun-watchdog.service -n 6 --no-pager
+# 小主機：最近發過哪些 Telegram（只記標題與第一行，不含 token）
+journalctl -u chijiun-watchdog.service --since -1d --no-pager -o cat | grep "已送出 Telegram"
 python3 -c 'import json; print(json.load(open("/run/chijiun-watchdog/status.json"))["services"])'
 # 小主機：確認金鑰真的只能讀清單（不管要求執行什麼，都只會印出清單）
 sudo ssh -T -F /dev/null -i /etc/chijiun-watchdog/svc_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
