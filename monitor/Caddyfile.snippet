@@ -3,7 +3,8 @@
 # tls internal 與 chijiun.com 一致（Cloudflare SSL 模式 Full）。
 #
 # 同一個網域：
-#   /          Uptime Kuma（自己的登入）。Kuma 官方不支援子路徑，所以它必須放根目錄。
+#   /          只有「恰好是 /」這一個路徑會轉址到 /hub/（預設進白話總覽頁）。
+#   其餘路徑  Uptime Kuma（自己的登入，入口是 /dashboard）。Kuma 官方不支援子路徑，所以它必須放根目錄。
 #   /hub/      白話總覽頁（monitor/hub/index.html），basic auth。
 #   /netdata/  Netdata 詳細圖表，basic auth。
 # /hub/ 與 /netdata/ 共用同一組 basic auth。
@@ -45,7 +46,11 @@ monitor.chijiun.com {
 		file_server
 	}
 
-	# 其餘全部交給 Uptime Kuma
+	# 根網址預設進總覽頁；只比對恰好 "/"（不能寫成 redir / /hub/，那會比對所有路徑）
+	@root path /
+	redir @root /hub/ temporary
+
+	# 其餘全部交給 Uptime Kuma（入口 https://monitor.chijiun.com/dashboard）
 	handle {
 		reverse_proxy 127.0.0.1:3001
 	}

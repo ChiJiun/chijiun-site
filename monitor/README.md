@@ -5,10 +5,10 @@
 | 網址 | 內容 | 保護方式 |
 | --- | --- | --- |
 | `monitor.chijiun.com/hub/` | **白話總覽頁（先看這個）**：服務有沒有活著、VM 用量、會不會被 Oracle 回收，並一鍵連到下面兩個工具 | Caddy `basic_auth`（與 `/netdata/` 共用） |
-| `monitor.chijiun.com/` | Uptime Kuma：服務過去有沒有掛過、回應時間、憑證到期、通知 | Kuma 自己的登入（可再加 Cloudflare Access） |
+| `monitor.chijiun.com/dashboard`（根網址 `/` 會轉到 `/hub/`） | Uptime Kuma：服務過去有沒有掛過、回應時間、憑證到期、通知 | Kuma 自己的登入（可再加 Cloudflare Access） |
 | `monitor.chijiun.com/netdata/` | Netdata：每個容器、網路、磁碟、Caddy 流量的詳細圖表 | Caddy `basic_auth`（可再加 Cloudflare Access） |
 
-兩個放在同一個網域。Uptime Kuma 官方不支援子路徑，所以 Kuma 放根目錄、Netdata 放 `/netdata/`，不能反過來。舊的 `netdata.chijiun.com` 只做轉址，指向 `/netdata/`。
+兩個放在同一個網域。Uptime Kuma 官方不支援子路徑，所以 Kuma 放根目錄、Netdata 放 `/netdata/`，不能反過來。為了預設看到白話總覽頁，Caddy 把「恰好是 `/`」的請求轉址到 `/hub/`；Kuma 的入口改為 `https://monitor.chijiun.com/dashboard`（其他 Kuma 路徑與 Push 網址不受影響）。舊的 `netdata.chijiun.com` 只做轉址，指向 `/netdata/`。
 
 兩個服務都只聽 `127.0.0.1`（Kuma 3001、Netdata 19999），Oracle 防火牆不需要開新埠，外面只能經過 Caddy 進來。
 
