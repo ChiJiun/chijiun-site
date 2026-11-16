@@ -133,7 +133,7 @@
       <strong>Uptime Kuma →</strong>
       <span>網站「過去」有沒有掛過、每次回應多久、憑證何時到期。通知（掛掉時傳訊息給你）也在這裡設定。</span>
     </a>
-    <a class="big" href="/hub/netdata-guide.html">
+    <a class="big" href="/overview/netdata-guide.html">
       <strong>Netdata 看不懂？先看這裡 →</strong>
       <span>用白話教你打開 Netdata 之後該看哪 5 個地方、數字代表什麼、什麼情況才要擔心。</span>
     </a>
@@ -163,7 +163,7 @@
 <script>
 (() => {
   "use strict";
-  const API = "/hub/api/v1/data";
+  const API = "/overview/api/v1/data";
   const CONTAINERS = ["stats-ai", "ncu-backend", "ncu-tunnel", "uptime-kuma"];
   const SITES = [["chijiun_com", "chijiun.com 個人網站"], ["stats_chijiun_com", "stats.chijiun.com"], ["monitor_chijiun_com", "monitor.chijiun.com（監控站）"]];
   const JOBS = [["chijiun_site", "個人網站"], ["stats_ai_healthz", "stats-ai"], ["ncu_backend_health", "ncu-backend"], ["ncu_backend_ready", "ncu-backend 就緒"]];
@@ -304,7 +304,7 @@
   async function renderWatchdog() {
     let w;
     try {
-      const r = await fetch("/hub/data/watchdog.json", { cache: "no-store", credentials: "same-origin" });
+      const r = await fetch("/overview/data/watchdog.json", { cache: "no-store", credentials: "same-origin" });
       if (r.status === 404) { $("watchdog").innerHTML = `<span class="muted">還沒有看門狗的資料（A1 還沒開始從小主機拉取，通常是剛安裝）。</span>`; return ""; }
       if (!r.ok) throw new Error(r.status);
       w = await r.json();
@@ -359,7 +359,7 @@
   async function renderIdle() {
     let s;
     try {
-      const r = await fetch("/hub/data/summary.json", { cache: "no-store", credentials: "same-origin" });
+      const r = await fetch("/overview/data/summary.json", { cache: "no-store", credentials: "same-origin" });
       if (!r.ok) throw new Error(r.status);
       s = await r.json();
     } catch (e) { $("idle").innerHTML = `<span class="err">讀不到閒置風險資料（取樣程式可能還沒跑）。</span>`; return ""; }

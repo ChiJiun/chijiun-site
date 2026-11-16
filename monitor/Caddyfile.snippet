@@ -2,20 +2,25 @@
 # 服務都只聽 127.0.0.1，外面只能經過 Caddy 進來。
 # tls internal 與 chijiun.com 一致（Cloudflare SSL 模式 Full）。
 #
-# 同一個網域：
-#   /          只有「恰好是 /」這一個路徑會轉址到 /hub/（預設進白話總覽頁）。
-#   其餘路徑  Uptime Kuma（自己的登入，入口是 /dashboard）。Kuma 官方不支援子路徑，所以它必須放根目錄。
-#   /hub/      白話總覽頁（monitor/hub/index.html），basic auth。
-#   /netdata/  Netdata 詳細圖表，basic auth。
-# /hub/ 與 /netdata/ 共用同一組 basic auth。
+# 同一個網域，全部（除了恰好 "/"）都在同一組 basic auth 後面：
+#   /           只有「恰好是 /」會轉址到 /overview/（預設進白話總覽頁）；這一個路徑不要求登入，
+#               讓外部存活檢查（看門狗、GitHub Actions）能用 302 判斷 Caddy 還活著。
+#   /overview/  白話總覽頁（repo 的 monitor/hub/index.html）。
+#   /netdata/   Netdata 詳細圖表。
+#   其餘路徑    Uptime Kuma（入口是 /dashboard）。Kuma 官方不支援子路徑，所以它必須放根目錄，
+#               而且它內部自己用了 /dashboard，總覽頁因此不能叫 /dashboard。
+#   舊的 /hub/…  轉址到 /overview/…（書籤不失效）。
+# 因為 Kuma 也在 basic auth 後面，可以在 Kuma 的「設定 → 安全性」停用它自己的登入，
+# 全站只用這一組帳密。Kuma 的 Push 回報走 127.0.0.1:3001，不經過這裡，不受影響。
+# 停用 Kuma 登入之前，務必先確認 Kuma 已經被 basic auth 保護（否則等於把管理介面公開）。
 #
 # 注意：這是最精簡的範本。實際部署在 VM 上的版本還多了兩件事（比照 stats.chijiun.com 的區塊）：
 #   1. @not_cloudflare：只允許 Cloudflare 的 IP 直連，其餘 abort（IP 範圍複製自 stats 區塊）。
-#   2. basic_auth 的帳號密碼在 VM 的 /opt/chijiun-monitor-accounts.txt（root 才能讀），不在 git 裡。
+#   2. basic_auth 的帳號密碼用 monitor/bin/set-basic-auth.sh 設定，不在 git 裡。
 
 monitor.chijiun.com {
 	tls internal
-	@private path /netdata /netdata/* /hub /hub/*
+	@private not path /
 
 	basic_auth @private {
 		# 雜湊用 `caddy hash-password` 產生；把結果貼在下面，不要把密碼本身或雜湊提交進 git。
@@ -29,26 +34,29 @@ monitor.chijiun.com {
 	}
 
 	# 總覽頁：靜態頁、閒置風險摘要（取樣程式輸出到 /run/chijiun-hub）、轉給 Netdata 的資料查詢
-	redir /hub /hub/ permanent
-	handle /hub/api/* {
+	redir /overview /overview/ permanent
+	# 舊網址 /hub/… → /overview/…
+	@oldhub path_regexp oldhub ^/hub(/.*)?$
+	redir @oldhub /overview{re.oldhub.1} permanent
+	handle /overview/api/* {
 		header Cache-Control "no-store"
-		uri replace /hub/api /api
+		uri replace /overview/api /api
 		reverse_proxy 127.0.0.1:19999
 	}
-	handle_path /hub/data/* {
+	handle_path /overview/data/* {
 		header Cache-Control "no-store"
 		root * /run/chijiun-hub
 		file_server
 	}
-	handle_path /hub/* {
+	handle_path /overview/* {
 		header Cache-Control "no-store"
 		root * /var/www/chijiun/monitor/hub
 		file_server
 	}
 
-	# 根網址預設進總覽頁；只比對恰好 "/"（不能寫成 redir / /hub/，那會比對所有路徑）
+	# 根網址預設進總覽頁；只比對恰好 "/"（不能寫成 redir / /overview/，那會比對所有路徑）
 	@root path /
-	redir @root /hub/ temporary
+	redir @root /overview/ temporary
 
 	# 其餘全部交給 Uptime Kuma（入口 https://monitor.chijiun.com/dashboard）
 	handle {

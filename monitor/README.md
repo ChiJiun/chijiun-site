@@ -4,13 +4,13 @@
 
 | 網址 | 內容 | 保護方式 |
 | --- | --- | --- |
-| `monitor.chijiun.com/hub/` | **白話總覽頁（先看這個）**：服務有沒有活著、VM 用量、會不會被 Oracle 回收，並一鍵連到下面兩個工具 | Caddy `basic_auth`（與 `/netdata/` 共用） |
-| `monitor.chijiun.com/dashboard`（根網址 `/` 會轉到 `/hub/`） | Uptime Kuma：服務過去有沒有掛過、回應時間、憑證到期、通知 | Kuma 自己的登入（可再加 Cloudflare Access） |
+| `monitor.chijiun.com/overview/` | **白話總覽頁（先看這個）**：服務有沒有活著、VM 用量、會不會被 Oracle 回收，並一鍵連到下面兩個工具 | Caddy `basic_auth`（與 `/netdata/` 共用） |
+| `monitor.chijiun.com/dashboard`（根網址 `/` 會轉到 `/overview/`） | Uptime Kuma：服務過去有沒有掛過、回應時間、憑證到期、通知 | 同一組 Caddy `basic_auth`；Kuma 自己的登入可在「設定 → 安全性」停用，全站只用一組帳密 |
 | `monitor.chijiun.com/netdata/` | Netdata：每個容器、網路、磁碟、Caddy 流量的詳細圖表 | Caddy `basic_auth`（可再加 Cloudflare Access） |
 
-`/hub/` 與 `/netdata/` 的 basic auth 帳密要更換時，在 VM 上執行 `sudo bash /var/www/chijiun/monitor/bin/set-basic-auth.sh`：互動輸入新帳號與密碼（密碼不顯示、不進指令列），自動備份 Caddyfile、驗證、reload，失敗會還原。Kuma 的登入密碼是另一組，在 Kuma 的「設定 → 安全性」改。
+`/overview/` 與 `/netdata/` 的 basic auth 帳密要更換時，在 VM 上執行 `sudo bash /var/www/chijiun/monitor/bin/set-basic-auth.sh`：互動輸入新帳號與密碼（密碼不顯示、不進指令列），自動備份 Caddyfile、驗證、reload，失敗會還原。Kuma 整個站台也在這組 basic auth 後面（只有恰好 `/` 例外，它只是轉址，讓外部存活檢查能用 302 判斷），所以停用 Kuma 自己的登入（設定 → 安全性 → 停用驗證）後，全站只用這一組帳密；Push 回報走 `127.0.0.1:3001`，不受影響。**順序很重要：要先確認 Caddy 已保護 Kuma，才能停用 Kuma 的登入。**舊的 `/hub/…` 網址會自動轉到 `/overview/…`。
 
-兩個放在同一個網域。Uptime Kuma 官方不支援子路徑，所以 Kuma 放根目錄、Netdata 放 `/netdata/`，不能反過來。為了預設看到白話總覽頁，Caddy 把「恰好是 `/`」的請求轉址到 `/hub/`；Kuma 的入口改為 `https://monitor.chijiun.com/dashboard`（其他 Kuma 路徑與 Push 網址不受影響）。舊的 `netdata.chijiun.com` 只做轉址，指向 `/netdata/`。
+兩個放在同一個網域。Uptime Kuma 官方不支援子路徑，所以 Kuma 放根目錄、Netdata 放 `/netdata/`，不能反過來。為了預設看到白話總覽頁，Caddy 把「恰好是 `/`」的請求轉址到 `/overview/`；總覽頁不能叫 `/dashboard`，因為 Kuma 內部自己用了這個路徑；Kuma 的入口是 `https://monitor.chijiun.com/dashboard`（其他 Kuma 路徑與 Push 網址不受影響）。舊的 `netdata.chijiun.com` 只做轉址，指向 `/netdata/`。
 
 兩個服務都只聽 `127.0.0.1`（Kuma 3001、Netdata 19999），Oracle 防火牆不需要開新埠，外面只能經過 Caddy 進來。
 
@@ -26,7 +26,7 @@ Kuma 與 Netdata 是給維運人員看的專業介面，不容易一眼看出「
 - **會不會被 Oracle 回收**：讀 `idle-sampler.py` 輸出的摘要。它每分鐘把摘要寫到 `/run/private/chijiun-monitor/summary.json`，再由 root（`ExecStartPost=-+…`）複製到 `/run/chijiun-hub/summary.json`，因為 DynamicUser 的目錄 Caddy 讀不到。
 - 頁面每 10 秒自動更新；最上方的橫幅會彙整「一切正常」或「有 N 項需要注意」。
 
-Caddy 的路由（細節見 [`Caddyfile.snippet`](Caddyfile.snippet)）：`/hub/` 是靜態頁、`/hub/data/` 是摘要 JSON、`/hub/api/` 轉給 Netdata 的 API（路徑改寫成 `/api/`）。三者都在 `basic_auth` 後面。
+Caddy 的路由（細節見 [`Caddyfile.snippet`](Caddyfile.snippet)）：`/overview/` 是靜態頁、`/overview/data/` 是摘要 JSON、`/overview/api/` 轉給 Netdata 的 API（路徑改寫成 `/api/`）。三者都在 `basic_auth` 後面。
 
 Kuma 本身無法加自訂連結，所以「從 Kuma 回到總覽頁」只能靠書籤，或之後在 Kuma 建一個狀態頁，把連結寫在說明裡。
 
@@ -43,14 +43,14 @@ Kuma 本身無法加自訂連結，所以「從 Kuma 回到總覽頁」只能靠
 - 通知設定在小主機的 `/etc/chijiun-watchdog.env`（權限 600）：填 `TELEGRAM_BOT_TOKEN` 與 `TELEGRAM_CHAT_ID`，下一分鐘生效，不用重啟。沒填時只寫日誌（`journalctl -u chijiun-watchdog`），不會報錯。
 - 通知沒送成功（沒設定或 Telegram 暫時失敗）不會標記為「已通知」，下一分鐘會再試。
 - 要檢查的網址寫在 `watchdog.py` 開頭的 `CHECKS`；改完重新執行 `install.sh`。
-- 注意：它只確認「從外面連得進來」，不看 VM 內部用量；用量與閒置回收風險仍看 `/hub/`。
+- 注意：它只確認「從外面連得進來」，不看 VM 內部用量；用量與閒置回收風險仍看 `/overview/`。
 
 ### 總覽頁怎麼拿到看門狗的結果
 
 總覽頁第 2 節顯示小主機最近一次的檢查結果、小主機自己的記憶體／負載／開機時間，超過 5 分鐘沒更新會標紅並進橫幅。資料流：
 
 1. 小主機的 `watchdog.py` 每分鐘寫 `status.json`（只有檢查結果與主機用量，**不含 token**），root 複製到 `/run/chijiun-watchdog/status.json`。
-2. A1 的 `chijiun-pull-watchdog.timer` 每分鐘跑 [`bin/pull-watchdog.sh`](bin/pull-watchdog.sh)，經 Oracle 私有網路（`10.0.0.87`）用 SSH 拉取，驗證是合法 JSON 才放到 `/run/chijiun-hub/watchdog.json`，總覽頁讀 `/hub/data/watchdog.json`。拉取失敗不動舊檔，所以過期會被發現。
+2. A1 的 `chijiun-pull-watchdog.timer` 每分鐘跑 [`bin/pull-watchdog.sh`](bin/pull-watchdog.sh)，經 Oracle 私有網路（`10.0.0.87`）用 SSH 拉取，驗證是合法 JSON 才放到 `/run/chijiun-hub/watchdog.json`，總覽頁讀 `/overview/data/watchdog.json`。拉取失敗不動舊檔，所以過期會被發現。
 3. SSH 金鑰是**專用的唯讀金鑰**：私鑰只在 A1（`/etc/chijiun-monitor/pull_key`，擁有者 `chijiun-pull`，權限 600）；公鑰放在小主機 `wdread` 帳號（無 sudo、無密碼），並以 `restrict,command="/bin/cat /run/chijiun-watchdog/status.json"` 限定。拿到這把金鑰也只能讀那個檔案，不能登入或執行別的指令。A1 用 `StrictHostKeyChecking=yes` 與寫死的主機公鑰（`/etc/chijiun-monitor/pull_known_hosts`）確認對方身分。
 4. 不開任何對外埠：兩台在同一個私有網段，只用既有的 SSH 22。
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 在 VM 上互動式更換監控站（/hub/ 與 /netdata/）的 basic auth 帳號與密碼。
+# 在 VM 上互動式更換監控站（/overview/ 與 /netdata/）的 basic auth 帳號與密碼。
 # 用法：sudo bash /var/www/chijiun/monitor/bin/set-basic-auth.sh
 # 密碼只在這個終端機輸入（不會顯示、不會寫進任何檔案或指令列），Caddyfile 只存 bcrypt 雜湊。
 # 流程：備份 → 只改 monitor.chijiun.com 區塊裡那一行 → caddy validate → reload；
@@ -67,5 +67,5 @@ fi
 
 echo
 echo "完成。帳號：$NEW_USER，舊密碼已失效。"
-echo "請用新帳密開 https://monitor.chijiun.com/hub/ 確認（瀏覽器若快取舊帳密，關掉分頁或用無痕視窗）。"
+echo "請用新帳密開 https://monitor.chijiun.com/overview/ 確認（瀏覽器若快取舊帳密，關掉分頁或用無痕視窗）。"
 echo "若要還原：sudo cp -a $BACKUP $CADDYFILE && sudo systemctl reload caddy"
