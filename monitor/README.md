@@ -8,6 +8,8 @@
 | `monitor.chijiun.com/dashboard`（根網址 `/` 會轉到 `/hub/`） | Uptime Kuma：服務過去有沒有掛過、回應時間、憑證到期、通知 | Kuma 自己的登入（可再加 Cloudflare Access） |
 | `monitor.chijiun.com/netdata/` | Netdata：每個容器、網路、磁碟、Caddy 流量的詳細圖表 | Caddy `basic_auth`（可再加 Cloudflare Access） |
 
+`/hub/` 與 `/netdata/` 的 basic auth 帳密要更換時，在 VM 上執行 `sudo bash /var/www/chijiun/monitor/bin/set-basic-auth.sh`：互動輸入新帳號與密碼（密碼不顯示、不進指令列），自動備份 Caddyfile、驗證、reload，失敗會還原。Kuma 的登入密碼是另一組，在 Kuma 的「設定 → 安全性」改。
+
 兩個放在同一個網域。Uptime Kuma 官方不支援子路徑，所以 Kuma 放根目錄、Netdata 放 `/netdata/`，不能反過來。為了預設看到白話總覽頁，Caddy 把「恰好是 `/`」的請求轉址到 `/hub/`；Kuma 的入口改為 `https://monitor.chijiun.com/dashboard`（其他 Kuma 路徑與 Push 網址不受影響）。舊的 `netdata.chijiun.com` 只做轉址，指向 `/netdata/`。
 
 兩個服務都只聽 `127.0.0.1`（Kuma 3001、Netdata 19999），Oracle 防火牆不需要開新埠，外面只能經過 Caddy 進來。
