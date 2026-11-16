@@ -1,0 +1,28 @@
+[Unit]
+Description=盤點這台 VM 上的服務（容器、Caddy 網域、systemd 服務），給總覽頁與站外看門狗用
+After=docker.service
+
+[Service]
+Type=oneshot
+# 程式由 install.sh 複製到 /opt/chijiun-monitor（root 擁有），不直接執行 repo 裡的檔案：
+# 這個服務有 docker 群組（等同能控制 Docker），不能讓「push 到 repo」就能換掉它執行的程式。
+ExecStart=/usr/bin/python3 -I /opt/chijiun-monitor/service-inventory.py
+# 人工補充（白話名稱、忽略清單、額外網址）只是資料，直接讀 repo 裡的；沒有這個檔也能跑
+Environment=INVENTORY_CONFIG=/var/www/chijiun/monitor/services.json
+# 不用 root：專用的系統使用者（install.sh 建立，不能登入）+ docker 群組（讀容器清單需要）。
+# 程式只執行 docker ps / docker inspect / systemctl show。
+# 不用 DynamicUser：臨時使用者連不上 D-Bus，systemctl show 會失敗（實測）。
+User=chijiun-inventory
+SupplementaryGroups=docker
+# 狀態（每個項目第一次看到的時間、重啟次數基準）存在 /var/lib/chijiun-services，重開機不會消失
+StateDirectory=chijiun-services
+RuntimeDirectory=chijiun-services
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+# 結果由 root 放到 Caddy 與 wdsvc 讀得到的位置；先寫暫存檔再改名，讀的人不會讀到寫到一半的檔案
+ExecStartPost=-+/bin/sh -c 'install -d -m 0755 /run/chijiun-hub && install -m 0644 /run/chijiun-services/services.json /run/chijiun-hub/.services.json.tmp && mv -f /run/chijiun-hub/.services.json.tmp /run/chijiun-hub/services.json'
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+TimeoutStartSec=50

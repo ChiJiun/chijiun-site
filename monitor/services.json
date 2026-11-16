@@ -1,0 +1,28 @@
+{
+  "_說明": "服務自動盤點的人工補充（可以整個檔案不存在）。格式見 monitor/README.md「服務自動盤點」。改完 push 即可，約 3 分鐘內生效。",
+  "names": {
+    "stats-ai": { "title": "統計 AI（stats-ai）", "desc": "stats.chijiun.com 背後的服務" },
+    "ncu-backend": { "title": "NCU 後端", "desc": "ncu-backend.chijiun.com，經 Cloudflare Tunnel 對外" },
+    "ncu-tunnel": { "title": "NCU 後端的 Cloudflare Tunnel", "desc": "把 ncu-backend 接到外面" },
+    "uptime-kuma": { "title": "Uptime Kuma（監控站）", "desc": "monitor.chijiun.com/dashboard" },
+    "mvdis-tunnel": { "title": "mvdis 的 Cloudflare Tunnel", "desc": "把 mvdis-watch 接到外面" },
+    "mvdis-watch-api-1": { "title": "mvdis API", "desc": "" },
+    "mvdis-watch-worker-1": { "title": "mvdis 背景工作", "desc": "" },
+    "mvdis-watch-scheduler-1": { "title": "mvdis 排程", "desc": "" },
+    "mvdis-watch-replay-1": { "title": "mvdis 重播", "desc": "" },
+    "mvdis-watch-postgres-1": { "title": "mvdis 資料庫（PostgreSQL）", "desc": "" },
+    "mvdis-watch-localstack-1": { "title": "mvdis 的 LocalStack", "desc": "在本機模擬 AWS 服務" },
+    "devspace.service": { "title": "DevSpace", "desc": "dev.chijiun.com 背後的服務（systemd）" }
+  },
+  "projects": {
+    "mvdis-watch": "mvdis-watch（監理站監看）",
+    "ncu-backend": "ncu-backend（NCU 後端）",
+    "stats-ai": "stats-ai（統計 AI）"
+  },
+  "ignore": [],
+  "ignore_domains": ["www.chijiun.com"],
+  "systemd": ["devspace.service"],
+  "extra_urls": [
+    { "name": "mvdis 對外網址", "url": "https://mvdis.chijiun.com/" }
+  ]
+}

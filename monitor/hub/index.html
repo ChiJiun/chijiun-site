@@ -92,6 +92,17 @@
     border-radius: 8px; padding: 6px 10px; font-size: .82rem; box-shadow: 0 4px 14px rgba(0,0,0,.18); display: none; white-space: nowrap; }
   .note { color: var(--muted); font-size: .85rem; margin: 0 0 8px; }
   .stack { display: grid; gap: 12px; }
+  /* 服務清單 */
+  .svc-group { margin-top: 14px; }
+  .svc-group > h4 { margin: 0 0 2px; font-size: .92rem; color: var(--muted); font-weight: 600; }
+  .svc { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line); }
+  .svc .pill { flex: none; margin-top: 2px; }
+  .svc .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .svc .body strong { font-weight: 600; }
+  .svc .body small { display: block; color: var(--muted); font-size: .85rem; }
+  .tag { display: inline-block; font-size: .75rem; font-weight: 600; padding: 0 8px; border-radius: 6px; margin-left: 6px;
+    border: 1px solid var(--accent); color: var(--accent); white-space: nowrap; vertical-align: 1px; }
+  .alertbox { background: var(--bad-bg); color: var(--bad); border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; font-weight: 600; }
   @media (max-width: 480px) { .card { padding: 12px; } }
 </style>
 </head>
@@ -112,21 +123,25 @@
   <p class="hint">這台 VM 如果整台停機，上面的監控也會跟著停。所以另外有一台獨立的小主機，每分鐘從外面連一次你的網站，連續失敗就用 Telegram 通知你。這裡顯示它最近一次的檢查結果。</p>
   <div class="card" id="watchdog">讀取中…</div>
 
-  <h2>3. VM 現在的用量</h2>
+  <h2>3. VM 上跑了哪些服務</h2>
+  <p class="hint">VM 每分鐘自動盤點一次：有哪些程式（容器）在跑、對外有哪些網域。新部署的服務會自動出現在這裡，並由站外看門狗自動納入監控，出問題會用 Telegram 通知你。</p>
+  <div class="card" id="inventory">讀取中…</div>
+
+  <h2>4. VM 現在的用量</h2>
   <p class="hint">這台是 Oracle 免費的 ARM 主機。數字越低代表越空閒，不是壞事。</p>
   <div class="card" id="usage">讀取中…</div>
 
-  <h2>4. 會不會被 Oracle 回收</h2>
+  <h2>5. 會不會被 Oracle 回收</h2>
   <p class="hint">Oracle 的規則：連續 7 天，CPU、記憶體、網路<strong>三項都低於 20%</strong>，閒置的免費主機可能被回收。只要<strong>任何一項</strong>高於 20% 就不會被判定閒置。</p>
   <div class="card" id="idle">讀取中…</div>
 
-  <h2>5. 一段時間內的變化（趨勢圖）</h2>
+  <h2>6. 一段時間內的變化（趨勢圖）</h2>
   <p class="hint">想知道「剛剛是不是變慢了」「昨天晚上有沒有異常」，看這裡。把滑鼠移到圖上（手機是手指按住）可以看到那個時間點的數字。</p>
   <div class="range" role="group" aria-label="時間範圍" id="range"></div>
   <p class="note" id="coverage"></p>
   <div class="stack" id="charts"></div>
 
-  <h2>6. 要看更細的細節，點這裡</h2>
+  <h2>7. 要看更細的細節，點這裡</h2>
   <p class="hint">這個頁面是把最重要的整理成白話。更細的內容在下面兩個工具。</p>
   <div class="links">
     <a class="big" href="/dashboard">
@@ -152,6 +167,10 @@
       <dt>就緒檢查（ready）</dt><dd>ncu-backend 的「檢索」和「PDF 對話」兩個子系統都準備好了，才算就緒。</dd>
       <dt>回應時間</dt><dd>檢查程式向服務打招呼，到收到回覆花的時間。突然變很長，通常代表服務忙不過來。</dd>
       <dt>站外看門狗</dt><dd>放在另一台獨立小主機上的檢查程式。它從「外面」連你的網站，所以即使這台 VM 整台停機也能發現並通知你。</dd>
+      <dt>容器</dt><dd>把一個程式和它需要的環境包在一起執行的方式（Docker）。這台 VM 上大部分的服務都是一個個容器。</dd>
+      <dt>新發現</dt><dd>最近 7 天內第一次在這台 VM 上看到的服務或網域。只是提醒「多了一個東西」，不代表有問題；7 天後標籤會自動消失。</dd>
+      <dt>自動納入監控</dt><dd>新服務一出現，不用改任何設定，就會開始被盤點：它停了、健康檢查失敗或一直重啟，站外看門狗都會通知。新網域也會自動從外面檢查連不連得上。</dd>
+      <dt>重啟次數</dt><dd>程式當掉後被系統自動重新啟動的次數。偶爾一次沒關係；短時間內一直增加，代表它一啟動就當掉。</dd>
       <dt>正常率</dt><dd>在選定的時間範圍內，每次檢查都正常的比例。100% 代表一次都沒有失敗。</dd>
     </dl>
   </details>
@@ -332,6 +351,90 @@
     return "";
   }
 
+  // ----- VM 上跑了哪些服務（服務自動盤點） -----
+  // 清單裡的名稱來自容器名稱等外部資料，一律經過 esc() 才放進頁面
+  const ST = { ok: "正常", warn: "注意", bad: "異常" };
+  function svcRow(i, extra, pill) {
+    const cls = ST[i.status] ? i.status : "";
+    const title = i.title && i.title !== i.name ? `<strong>${esc(i.title)}</strong> <span class="muted">${esc(i.name)}</span>` : `<strong>${esc(i.name)}</strong>`;
+    return `<div class="svc"><span class="pill ${cls}">${esc(pill || ST[i.status] || "未知")}</span><div class="body">${title}${i.new ? `<span class="tag">新發現</span>` : ""}
+      <small>${[i.note].concat(extra).filter(Boolean).map(esc).join("　·　")}</small>${i.desc ? `<small>${esc(i.desc)}</small>` : ""}</div></div>`;
+  }
+  async function renderInventory() {
+    const box = $("inventory");
+    let d, w = null;
+    try {
+      const r = await fetch("/overview/data/services.json", { cache: "no-store", credentials: "same-origin" });
+      if (r.status === 404) { box.innerHTML = `<span class="muted">還沒有服務清單（盤點程式還沒跑過，通常是剛安裝；請在 VM 上執行 monitor/install.sh）。</span>`; return ""; }
+      if (!r.ok) throw new Error(r.status);
+      d = await r.json();
+      if (!d || typeof d.updated !== "number") throw new Error("format");
+    } catch (e) { box.innerHTML = `<span class="err">讀不到服務清單。</span>`; return ""; }
+    try { const r = await fetch("/overview/data/watchdog.json", { cache: "no-store", credentials: "same-origin" }); if (r.ok) w = await r.json(); } catch (e) {}
+
+    const arr = (x) => (Array.isArray(x) ? x : []);
+    const containers = arr(d.containers), units = arr(d.systemd), domains = arr(d.domains), problems = arr(d.problems);
+    const items = containers.concat(units);
+    const bad = items.concat(problems).filter((i) => i.status === "bad");
+    const warn = items.concat(problems).filter((i) => i.status === "warn");
+    const fresh = items.concat(domains).filter((i) => i.new);
+    const age = Math.round(Date.now() / 1000 - d.updated), stale = age > 300;
+
+    // 網域與額外網址的外部檢查結果來自站外看門狗（太舊就不採用）
+    const wchecks = w && Array.isArray(w.checks) && Date.now() / 1000 - w.updated <= 300 ? w.checks : [];
+    const ext = {};
+    wchecks.forEach((c) => { if (c.domain) ext[c.domain] = c; });
+    const extras = wchecks.filter((c) => c.kind === "extra");
+    const extStatus = (c) => (c.ok ? "ok" : c.alerted ? "bad" : "warn");
+    const extNote = (c) => `從外面檢查：${c.detail}${c.ms != null ? `，${c.ms} 毫秒` : ""}`;
+    const outside = domains.filter((x) => ext[x.name] && !x.redirect_only && !x.ignored).map((x) => ext[x.name]).concat(extras).filter((c) => !c.ok);
+
+    const need = bad.length + warn.length + outside.length;
+    let cls = "ok", label = "全部正常";
+    if (stale) { cls = "bad"; label = "清單過期"; }
+    else if (bad.length) { cls = "bad"; label = "有異常"; }
+    else if (need) { cls = "warn"; label = "需要注意"; }
+    let html = `<h3 style="margin:0 0 8px">共 ${items.length} 個服務、${domains.length} 個網域，${need ? `${need} 個需要注意` : "都正常"}<span class="pill ${cls}">${label}</span></h3>`;
+    if (stale) html += `<div class="alertbox">服務清單已經 ${Math.round(age / 60)} 分鐘沒有更新，下面是舊資料，不代表現在的狀況。請到 VM 上檢查 chijiun-service-inventory.timer。</div>`;
+    html += `<p class="meaning" style="margin:0 0 4px">容器 ${containers.length} 個、系統服務 ${units.length} 個。${fresh.length ? `最近 7 天新發現 ${fresh.length} 個（有「新發現」標籤）。` : ""}</p>`;
+    html += problems.map((p) => svcRow({ name: p.name, status: p.status, note: p.note }, [])).join("");
+
+    const groups = new Map();
+    containers.forEach((c) => { const k = c.project || ""; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); });
+    [...groups.keys()].sort((a, b) => (a === "") - (b === "") || a.localeCompare(b)).forEach((k) => {
+      const list = groups.get(k);
+      html += `<div class="svc-group"><h4>${k ? esc(list[0].project_title || k) : "獨立容器（不屬於任何專案）"}</h4>` + list.map((c) => svcRow(c, [
+        c.restart_count ? `自動重啟過 ${Number(c.restart_count)} 次` : "",
+        c.image ? `映像 ${c.image}` : "",
+        arr(c.ports).length ? `埠 ${arr(c.ports).join("、")}${c.public_ports ? "（對外開放）" : "（只限本機）"}` : "",
+      ])).join("") + `</div>`;
+    });
+    if (units.length) html += `<div class="svc-group"><h4>系統服務（systemd，不是容器）</h4>` +
+      units.map((u) => svcRow(u, [u.restart_count ? `自動重啟過 ${Number(u.restart_count)} 次` : ""])).join("") + `</div>`;
+    if (domains.length) html += `<div class="svc-group"><h4>對外的網域（Caddy）</h4>` + domains.map((x) => {
+      const c = ext[x.name], target = arr(x.targets).length ? `轉給容器 ${arr(x.targets).join("、")}` : "";
+      const row = { name: x.name, title: x.title, desc: x.desc, new: x.new, note: x.note, status: "" };
+      if (x.redirect_only) return svcRow(row, [target], "只轉址");
+      if (x.ignored) return svcRow(row, [target], "不檢查");
+      if (!c) return svcRow(Object.assign(row, { note: "還沒有站外看門狗的檢查結果" }), [target], "未知");
+      return svcRow(Object.assign(row, { status: extStatus(c), note: extNote(c) }), [target]);
+    }).join("") + `</div>`;
+    if (extras.length) html += `<div class="svc-group"><h4>額外檢查的網址（經 Cloudflare Tunnel 等，VM 上看不到網域的服務）</h4>` +
+      extras.map((c) => svcRow({ name: String(c.name).replace(/^額外 /, ""), status: extStatus(c), note: extNote(c) }, [])).join("") + `</div>`;
+
+    const dg = d.digest || {}, nm = (l) => arr(l).map((x) => `${x.kind_label || ""} ${x.name}`.trim()).join("、");
+    const wsv = w && w.services;
+    let foot = `過去 24 小時新增：${esc(nm(dg.added) || "無")}；消失：${esc(nm(dg.removed) || "無")}。`;
+    foot += `清單更新於 ${stale ? `<span class="err">${Math.round(age / 60)} 分鐘前</span>` : (age < 90 ? `${Math.max(0, age)} 秒前` : `${Math.round(age / 60)} 分鐘前`)}。`;
+    if (wsv && wsv.configured) foot += wsv.ok ? "站外看門狗有收到這份清單，異常會通知你。" : `<span class="err">站外看門狗目前拿不到這份清單（${esc(wsv.error || "原因不明")}），服務異常暫時不會通知。</span>`;
+    else foot += `<span class="err">站外看門狗還沒有接上這份清單，服務異常不會通知。</span>`;
+    box.innerHTML = html + `<p class="meaning" style="margin-top:12px">${foot}</p>`;
+
+    if (stale) return "VM 服務清單沒有更新";
+    if (bad.length) return `VM 上的服務異常：${bad.map((i) => esc(i.title || i.name)).join("、")}`;
+    return "";
+  }
+
   // ----- 目前用量 -----
   async function renderUsage() {
     const out = [];
@@ -479,12 +582,12 @@
 
   async function refresh() {
     authFailed = false;
-    const [svc, use, idle, wd] = await Promise.all([renderServices(), renderUsage(), renderIdle(), renderWatchdog()]);
-    const problems = [...svc, ...use]; if (idle) problems.push(idle); if (wd) problems.push(wd);
+    const [svc, use, idle, wd, invp] = await Promise.all([renderServices(), renderUsage(), renderIdle(), renderWatchdog(), renderInventory()]);
+    const problems = [...svc, ...use]; if (idle) problems.push(idle); if (wd) problems.push(wd); if (invp) problems.push(invp);
     const b = $("banner");
     if (authFailed) { b.className = "banner bad"; b.innerHTML = "登入已過期<small>請重新整理頁面並輸入帳號密碼。</small>"; }
     else if (problems.length) { b.className = "banner bad"; b.innerHTML = `有 ${problems.length} 項需要注意<small>${problems.join("；")}</small>`; }
-    else { b.className = "banner ok"; b.innerHTML = "一切正常<small>服務都有回應，站外看門狗也正常，用量在安全範圍。</small>"; }
+    else { b.className = "banner ok"; b.innerHTML = "一切正常<small>服務都有回應，VM 上的服務都在跑，站外看門狗也正常，用量在安全範圍。</small>"; }
     $("updated").textContent = "更新於 " + new Date().toLocaleTimeString("zh-TW", { hour12: false }) + "，現況每 10 秒更新、趨勢圖每分鐘更新";
   }
 

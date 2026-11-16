@@ -14,12 +14,12 @@ if [ "$REPO" != "/var/www/chijiun" ]; then
   echo "注意：repo 在 $REPO，但 systemd unit 寫死 /var/www/chijiun/monitor/…；請確認路徑一致。" >&2
 fi
 
-echo "==> 1/6 安裝相依套件（docker.io、curl、python3）"
+echo "==> 1/7 安裝相依套件（docker.io、curl、python3）"
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io curl python3
 systemctl enable --now docker
 
-echo "==> 2/6 Uptime Kuma（只聽 127.0.0.1:3001）"
+echo "==> 2/7 Uptime Kuma（只聽 127.0.0.1:3001）"
 if docker ps -a --format '{{.Names}}' | grep -qx uptime-kuma; then
   echo "    已存在，略過"
 else
@@ -30,7 +30,7 @@ else
     louislam/uptime-kuma:2
 fi
 
-echo "==> 3/6 Netdata（官方 kickstart，穩定版、關閉匿名統計）"
+echo "==> 3/7 Netdata（官方 kickstart，穩定版、關閉匿名統計）"
 if command -v netdata >/dev/null 2>&1; then
   echo "    已安裝，略過"
 else
@@ -52,7 +52,7 @@ if ! grep -Eq '^\s*bind to\s*=\s*(127\.0\.0\.1|localhost)' /etc/netdata/netdata.
   fi
 fi
 
-echo "==> 4/6 回報用設定檔 /etc/chijiun-monitor.env"
+echo "==> 4/7 回報用設定檔 /etc/chijiun-monitor.env"
 if [ -e /etc/chijiun-monitor.env ]; then
   echo "    已存在，略過"
 else
@@ -70,7 +70,7 @@ SYNC_PUSH_URL=
 EOF
 fi
 
-echo "==> 5/6 安裝並啟用 systemd timer"
+echo "==> 5/7 安裝並啟用 systemd timer"
 install -m 644 "$REPO"/monitor/systemd/chijiun-idle-sampler.service /etc/systemd/system/
 install -m 644 "$REPO"/monitor/systemd/chijiun-idle-sampler.timer   /etc/systemd/system/
 install -m 644 "$REPO"/monitor/systemd/chijiun-sync-report.service  /etc/systemd/system/
@@ -78,7 +78,7 @@ install -m 644 "$REPO"/monitor/systemd/chijiun-sync-report.timer    /etc/systemd
 systemctl daemon-reload
 systemctl enable --now chijiun-idle-sampler.timer chijiun-sync-report.timer
 
-echo "==> 6/6 站外看門狗的拉取服務（讓總覽頁顯示小主機看門狗的結果）"
+echo "==> 6/7 站外看門狗的拉取服務（讓總覽頁顯示小主機看門狗的結果）"
 # 專用使用者 + 專用 SSH 金鑰；私鑰只留在這台。公鑰要放到小主機的 wdread 帳號，
 # 並限定成只能執行 cat 狀態檔（見 monitor/README.md「站外看門狗」）。已存在就略過。
 getent passwd chijiun-pull >/dev/null || useradd --system --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin chijiun-pull
@@ -97,6 +97,29 @@ else
   echo "    再執行 sudo systemctl enable --now chijiun-pull-watchdog.timer"
 fi
 echo "    要放到小主機 wdread 帳號的公鑰："; cat /etc/chijiun-monitor/pull_key.pub
+
+echo "==> 7/7 服務自動盤點（容器、Caddy 網域、systemd 服務 → 總覽頁與站外看門狗）"
+# 盤點程式有 docker 群組（讀容器清單需要），所以複製到 root 擁有的 /opt 再執行，
+# 不直接跑 repo 裡的檔案；之後改了 monitor/bin/service-inventory.py，要重新執行這支 install.sh 才會生效。
+getent passwd chijiun-inventory >/dev/null || useradd --system --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin chijiun-inventory
+install -d -m 0755 /opt/chijiun-monitor
+install -m 0755 "$REPO"/monitor/bin/service-inventory.py /opt/chijiun-monitor/service-inventory.py
+install -m 644 "$REPO"/monitor/systemd/chijiun-service-inventory.service /etc/systemd/system/
+install -m 644 "$REPO"/monitor/systemd/chijiun-service-inventory.timer   /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now chijiun-service-inventory.timer
+# 給小主機看門狗拉取服務清單用的帳號：無密碼、無 sudo。家目錄與 authorized_keys 都由 root 擁有，
+# 這個帳號自己改不了；金鑰在 authorized_keys 裡限定成只能 cat 服務清單（見 monitor/README.md「服務自動盤點」）。
+# shell 必須是真的 shell（sshd 用它來執行限定的那一行指令），所以不能用 nologin。
+getent passwd wdsvc >/dev/null || useradd --system --create-home --home-dir /home/wdsvc --shell /bin/sh wdsvc
+chown root:root /home/wdsvc; chmod 0755 /home/wdsvc
+install -d -m 0755 -o root -g root /home/wdsvc/.ssh
+[ -e /home/wdsvc/.ssh/authorized_keys ] || install -m 0644 -o root -g root /dev/null /home/wdsvc/.ssh/authorized_keys
+if [ ! -s /home/wdsvc/.ssh/authorized_keys ]; then
+  echo "    還沒有放小主機的公鑰。在小主機執行 watchdog/install.sh 會印出公鑰，然後在這台寫入（整行，一行）："
+  echo "    from=\"10.0.0.87\",restrict,command=\"/bin/cat /run/chijiun-hub/services.json\" <小主機印出的公鑰>"
+  echo "    檔案：/home/wdsvc/.ssh/authorized_keys（root 擁有、權限 644）"
+fi
 
 echo
 echo "完成。接下來（細節見 monitor/README.md）："

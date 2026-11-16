@@ -9,6 +9,9 @@ DynamicUser=yes
 StateDirectory=chijiun-watchdog
 # TELEGRAM_BOT_TOKEN、TELEGRAM_CHAT_ID 放在這個檔（權限 600，root 擁有）；沒有這個檔也能跑，只是不通知
 EnvironmentFile=-/etc/chijiun-watchdog.env
+# 向 A1 拉取服務清單用的唯讀金鑰（install.sh 產生）。LoadCredential 只把它交給這個服務，
+# 放在 $CREDENTIALS_DIRECTORY/svc_key；A1 那邊把這把金鑰限定成只能 cat 服務清單。
+LoadCredential=svc_key:/etc/chijiun-watchdog/svc_key
 ExecStart=/usr/bin/python3 -I /opt/chijiun-watchdog/watchdog.py
 # 摘要（不含機密）由 root 複製到全域可讀的位置，供 A1 經唯讀 SSH 拉取；DynamicUser 的目錄別人讀不到
 ExecStartPost=-+/bin/sh -c 'install -d -m 0755 /run/chijiun-watchdog && install -m 0644 /var/lib/private/chijiun-watchdog/status.json /run/chijiun-watchdog/status.json'

@@ -22,6 +22,7 @@ Kuma 與 Netdata 是給維運人員看的專業介面，不容易一眼看出「
 - **趨勢圖**（可切換 1 小時、6 小時、24 小時、7 天；滑鼠移上去或手指按住會顯示該時間點的數字）：CPU、記憶體、網路流量、各容器的 CPU 與記憶體、各網域每分鐘請求數、各服務的回應時間。圖是頁面自己用 SVG 畫的，沒有外部函式庫。Netdata 的歷史只從安裝那一刻開始，資料不夠長時頁面會註明。
 - **VM 用量**：CPU、記憶體、磁碟，資料來自 Netdata。
 - **站外看門狗**：顯示小主機從外面檢查網站的結果（見下方「站外看門狗」）。
+- **VM 上跑了哪些服務**：自動盤點的容器（依 compose 專案分組）、systemd 服務與 Caddy 網域，各有狀態燈、「新發現」標籤與重啟次數；清單超過 5 分鐘沒更新會明顯警告（見下方「服務自動盤點」）。
 - **Netdata 導覽**：[`hub/netdata-guide.html`](hub/netdata-guide.html) 用白話教怎麼看 Netdata（含「Skip and use the dashboard anonymously」這個容易卡住的登入畫面）。
 - **會不會被 Oracle 回收**：讀 `idle-sampler.py` 輸出的摘要。它每分鐘把摘要寫到 `/run/private/chijiun-monitor/summary.json`，再由 root（`ExecStartPost=-+…`）複製到 `/run/chijiun-hub/summary.json`，因為 DynamicUser 的目錄 Caddy 讀不到。
 - 頁面每 10 秒自動更新；最上方的橫幅會彙整「一切正常」或「有 N 項需要注意」。
@@ -42,7 +43,8 @@ Kuma 本身無法加自訂連結，所以「從 Kuma 回到總覽頁」只能靠
 - 安裝：把 `watchdog/` 複製到小主機，`sudo bash install.sh`。可重複執行，不會覆蓋已填好的設定。
 - 通知設定在小主機的 `/etc/chijiun-watchdog.env`（權限 600）：填 `TELEGRAM_BOT_TOKEN` 與 `TELEGRAM_CHAT_ID`，下一分鐘生效，不用重啟。沒填時只寫日誌（`journalctl -u chijiun-watchdog`），不會報錯。
 - 通知沒送成功（沒設定或 Telegram 暫時失敗）不會標記為「已通知」，下一分鐘會再試。
-- 要檢查的網址寫在 `watchdog.py` 開頭的 `CHECKS`；改完重新執行 `install.sh`。
+- 要比對內容或指定狀態碼的網址寫在 `watchdog.py` 開頭的 `CHECKS`；改完重新執行 `install.sh`。Caddy 的網域與 `monitor/services.json` 的 `extra_urls` 會自動加做「活著就好」的外部檢查，不用改程式（見「服務自動盤點」）。
+- 它也每分鐘向 A1 拉取服務清單，負責「服務異常／新服務／A1 沒有回報清單」的通知（見「服務自動盤點」）。
 - 注意：它只確認「從外面連得進來」，不看 VM 內部用量；用量與閒置回收風險仍看 `/overview/`。
 
 ### 總覽頁怎麼拿到看門狗的結果
@@ -55,6 +57,127 @@ Kuma 本身無法加自訂連結，所以「從 Kuma 回到總覽頁」只能靠
 4. 不開任何對外埠：兩台在同一個私有網段，只用既有的 SSH 22。
 
 安裝（A1 上 `sudo bash monitor/install.sh` 第 6 步會建使用者、金鑰與 timer）後，要手動做兩件事：把印出的公鑰放進小主機 `wdread` 的 `authorized_keys`（含上面的 `restrict,command=…` 前綴），並把小主機的主機公鑰寫進 A1 的 `pull_known_hosts`。
+
+## 服務自動盤點
+
+目的：VM 上新部署的服務不用改任何監控設定，就會自動出現在總覽頁（第 3 節「VM 上跑了哪些服務」），並由站外看門狗用 Telegram 通知新增與異常。
+
+### 運作方式
+
+1. **A1 盤點**（[`bin/service-inventory.py`](bin/service-inventory.py)，`chijiun-service-inventory.timer` 每分鐘一次）。全程唯讀，只執行 `docker ps`、`docker inspect`、`systemctl show`，不會啟動、停止或重啟任何東西：
+   - **容器**：名稱、compose 專案、映像（不含 digest）、狀態、健康檢查、重啟設定、重啟次數、啟動時間、對應到主機的埠。`docker inspect` 用固定的格式範本只取這些欄位，**不讀環境變數、啟動指令、掛載路徑**。
+   - **網域**：解析 `/etc/caddy/Caddyfile` 的站點標頭。`basic_auth` 區塊的內容完全跳過（裡面有密碼雜湊），其他行只取指令名稱與 `reverse_proxy` 後面的本機埠；只有 `redir` 的站點（例如 `netdata.chijiun.com`）標成「只轉址」。
+   - **systemd 服務**：`/etc/systemd/system` 底下自己放的常駐服務（一般檔案、非 snap、非 oneshot，目前是 `devspace.service`），加上設定檔 `systemd` 欄位列出的。
+   - 輸出 `/run/chijiun-hub/services.json`（權限 644，先寫暫存檔再改名；**不含機密**），總覽頁讀 `/overview/data/services.json`。
+   - 狀態存在 `/var/lib/chijiun-services/services-state.json`：每個項目第一次看到的時間、重啟次數基準、最近的新增／消失事件。**第一次執行會把當下看到的全部當成「已知基準」（`baseline: true`），不會標成新發現**；狀態檔壞掉時也一樣重新建立基準。
+2. **小主機看門狗**（[`watchdog/watchdog.py`](watchdog/watchdog.py)）每分鐘經私有網路拉取這份清單，負責通知，並對清單裡的網域自動加做外部檢查。
+3. **每天的摘要**：清單的 `digest` 欄位是「過去 24 小時淨新增／消失的項目」，看門狗的每日 9 點回報會附上服務總數、異常數與這份摘要。
+
+### 判斷規則
+
+| 情況 | 狀態 |
+| --- | --- |
+| 重啟設定是 `always`／`unless-stopped`／`on-failure` 的容器沒有在跑（含手動 `docker stop`） | 異常 |
+| 健康檢查 `unhealthy` | 異常 |
+| 健康檢查 `starting` 超過 5 分鐘 | 注意 |
+| 重啟次數比上次多（15 分鐘內） | 注意 |
+| 重啟次數連續兩次盤點都增加，或 15 分鐘內增加 3 次以上（疑似一啟動就當掉） | 異常 |
+| 重啟設定是 `no` 的一次性容器正常結束（exit 0）；`on-failure` 的容器正常結束 | 正常（忽略） |
+| 重啟設定是 `no` 的容器以錯誤結束 | 注意 |
+| systemd 服務 `failed`，或設定開機啟動卻沒有在跑 | 異常 |
+| 讀不到 Docker | 異常（項目名稱「Docker」）；這時不會把容器當成全部消失 |
+| 第一次看到未滿 7 天、而且不是基準 | 加上 `new: true`（「新發現」，**不等於異常**） |
+
+「消失」要連續 3 次盤點（約 3 分鐘）都沒看到才算，避免重新部署的空檔被當成消失；消失後 30 天內再出現，不會再被當成新發現。
+
+### 通知（小主機，Telegram）
+
+沿用看門狗原本的原則：連續 3 次才通知、恢復時通知一次、**送出成功才標記已通知**（失敗下一分鐘再試）。訊息只有名稱、狀態與白話說明。
+
+- **服務異常**：清單裡某個項目連續 3 次都是「異常」→ 通知；恢復時通知。
+- **新服務**：出現 `new: true` 的容器／系統服務／網域 → 每個只通知一次，並提醒「已自動納入監控，如需補充網址請告訴我」。
+- **A1 沒有回報服務清單**：拉不到清單，或清單的 `updated` 超過 5 分鐘，連續 3 次 → 通知；恢復時通知。這段期間仍會用上次的網域清單繼續做外部檢查。
+- **每日 9 點回報**：外部檢查項數、服務總數、異常與注意數、過去 24 小時新增／消失。
+- **網域外部檢查**：清單裡每個網域（排除只轉址與 `ignore_domains`）自動 `GET https://<網域>/`，不跟隨轉址，HTTP 狀態 < 500 就算活著（401／403／404／301／302 都算；Cloudflare 的 52x／530 與其他 5xx 算失敗）。結果併入 `status.json` 的 `checks`（多了 `kind` 與 `domain` 欄位，原有欄位不變），總覽頁第 2 節會列出。網址已經有寫死檢查的（`chijiun.com/`、`monitor.chijiun.com/`）不重複。
+
+### 信任邊界（小主機 → A1 的唯讀 SSH）
+
+方向與「總覽頁怎麼拿到看門狗的結果」相反，做法相同：
+
+- 私鑰只在小主機（`/etc/chijiun-watchdog/svc_key`，root 擁有、權限 600），由 systemd `LoadCredential` 只交給看門狗服務。
+- 公鑰放在 A1 的 `wdsvc` 帳號（無密碼、無 sudo；shell 是 `/bin/sh`，因為 sshd 要用它執行限定的指令）。家目錄、`.ssh` 與 `authorized_keys` 都是 **root 擁有**，這個帳號自己改不了。`authorized_keys` 內容：
+
+  ```
+  from="10.0.0.87",restrict,command="/bin/cat /run/chijiun-hub/services.json" ssh-ed25519 AAAA… chijiun-watchdog-svc
+  ```
+
+  `restrict` 關掉終端機、轉送埠、agent 等所有功能，`command=` 讓它不管要求執行什麼都只會 `cat` 那個檔，`from=` 限定只能從小主機的私有 IP 連。
+- 小主機用 `StrictHostKeyChecking=yes` 與寫死的 A1 主機公鑰（`/etc/chijiun-watchdog/svc_known_hosts`）確認對方身分；走 Oracle 私有網路（A1 是 `10.0.0.37`），不開新的埠。
+- **風險**：這把金鑰如果被拿走（等於小主機被入侵），對方能做的只有「從小主機的 IP 讀服務清單」：容器名稱、映像名稱、狀態、埠、網域。清單不含任何機密，但它等於一份「這台 VM 上跑了什麼」的地圖。不能登入 A1、不能執行別的指令。
+- 反方向：清單的內容對小主機來說是**不可信的資料**。看門狗會把字串截短並去掉控制字元才放進通知；清單給的網域與額外網址只接受 `https`、必須是網域名稱（不是 IP）、而且解析結果全是公網位址才會去連，所以就算 A1 被入侵，也不能叫小主機去連私有網段或雲端的 metadata 位址。
+- A1 的盤點程式以專用的系統使用者 `chijiun-inventory`（不能登入）加上 `docker` 群組執行（讀容器清單需要；`docker` 群組實際上等同能控制 Docker）。所以程式是由 `install.sh` 複製到 root 擁有的 `/opt/chijiun-monitor/` 再執行，**不直接跑 repo 裡的檔案**，避免「能 push 到 repo」就等於「能在 VM 上以 docker 權限執行程式」。代價是改了 `bin/service-inventory.py` 之後要在 A1 重新複製（見下方）。`monitor/services.json` 只是資料，push 後直接生效。
+
+### 人工補充：`monitor/services.json`
+
+這個檔可以不存在。改完 push，約 3 分鐘內生效（不用重啟任何東西）。
+
+```json
+{
+  "names": {
+    "ncu-backend": { "title": "NCU 後端", "desc": "顯示在名稱下面的一行說明" },
+    "devspace.service": "DevSpace"
+  },
+  "projects": { "mvdis-watch": "mvdis-watch（監理站監看）" },
+  "ignore": ["tmp-*"],
+  "ignore_domains": ["www.chijiun.com"],
+  "systemd": ["devspace.service"],
+  "extra_urls": [{ "name": "mvdis 對外網址", "url": "https://mvdis.chijiun.com/" }]
+}
+```
+
+- `names`：容器名稱、systemd 單元名稱或網域 → 白話名稱（字串，或 `title`＋`desc`）。沒寫的直接顯示原本的名稱。
+- `projects`：compose 專案 → 總覽頁的分組標題。
+- `ignore`：不要盤點的容器或 systemd 服務（可用 `*` 萬用字元）。被忽略的不顯示、不通知。
+- `ignore_domains`：仍然列出，但不做外部檢查。目前放了 `www.chijiun.com`：Caddyfile 有這個站點，但 DNS 沒有這筆記錄（2026-11-17 從小主機實測查不到），不忽略的話會一直報異常；補上 DNS 之後把它拿掉即可。
+- `systemd`：額外要關注的 systemd 服務（自動發現沒抓到的，例如 oneshot 或套件裝的）。
+- `extra_urls`：VM 上看不到網域的服務（例如經 Cloudflare Tunnel 對外、主機名設定在 Cloudflare 那邊的），在這裡補上要從外面檢查的網址；只接受 `https://`，判斷標準與網域檢查相同（HTTP < 500 算活著）。
+  - `https://mvdis.chijiun.com/`：mvdis 的對外網址，**由使用者提供**，2026-11-17 實測 `GET /` 回 HTTP 200。（實測時 `/healthz` 也回 200，其餘常見健康檢查路徑為 404；目前先檢查 `/`。）
+
+### 安裝與更新
+
+- A1：`sudo bash monitor/install.sh` 的第 7 步會複製程式到 `/opt/chijiun-monitor/`、安裝並啟用 timer、建立 `wdsvc` 帳號。只想更新盤點程式時：
+
+  ```bash
+  sudo install -m 0755 /var/www/chijiun/monitor/bin/service-inventory.py /opt/chijiun-monitor/service-inventory.py
+  ```
+- 小主機：把 `watchdog/` 複製過去，`sudo bash install.sh`。它會產生拉取用的金鑰並印出要放到 A1 `/home/wdsvc/.ssh/authorized_keys` 的那一行；另外要把 A1 的主機公鑰寫進小主機的 `/etc/chijiun-watchdog/svc_known_hosts`（指令會印出來）。金鑰或 `svc_known_hosts` 還沒設定時，看門狗照常做外部檢查，只是不拉清單、也不會因此通知。
+
+### 檢查方式
+
+```bash
+# A1：盤點有在跑、清單內容
+systemctl list-timers chijiun-service-inventory.timer
+journalctl -u chijiun-service-inventory.service -n 5 --no-pager
+python3 -m json.tool /run/chijiun-hub/services.json | head -40
+# 小主機：有沒有拉到清單（每分鐘一行「服務清單：正常」）
+journalctl -u chijiun-watchdog.service -n 6 --no-pager
+python3 -c 'import json; print(json.load(open("/run/chijiun-watchdog/status.json"))["services"])'
+# 小主機：確認金鑰真的只能讀清單（不管要求執行什麼，都只會印出清單）
+sudo ssh -T -F /dev/null -i /etc/chijiun-watchdog/svc_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+  -o UserKnownHostsFile=/etc/chijiun-watchdog/svc_known_hosts wdsvc@10.0.0.37 id | head -c 80
+# 本機：單元測試（不需要 Docker 或網路）
+python3 monitor/tests/test_services.py
+```
+
+想重新建立基準（例如狀態檔亂掉）：在 A1 刪掉 `/var/lib/chijiun-services/services-state.json`，下一分鐘會把當下的全部重新當成基準。
+
+### 已知限制
+
+- 盤點每分鐘一次，存活不到一分鐘的容器看不到。
+- 容器「消失」（被 `docker rm`）只會出現在每日回報與總覽頁的「過去 24 小時」，不會即時通知；只有「還在、但沒在跑」才算異常。
+- 只看得到 Caddyfile 裡的網域。經 Cloudflare Tunnel 對外的主機名設定在 Cloudflare，VM 上看不到，要用 `extra_urls` 補。
+- Caddyfile 解析只認「一行一個指令、大括號獨立成字」的常見寫法；`import` 進來的其他檔案裡的站點不會被看到。
+- 網域外部檢查只確認「連得進來、不是 5xx」，不看內容；要比對內容的仍寫在 `watchdog.py` 的 `CHECKS`。
 
 
 ## 監控項目

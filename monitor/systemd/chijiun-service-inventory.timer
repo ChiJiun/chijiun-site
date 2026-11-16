@@ -1,0 +1,10 @@
+[Unit]
+Description=每分鐘盤點一次 VM 上的服務
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=1min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
