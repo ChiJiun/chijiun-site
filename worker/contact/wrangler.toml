@@ -1,0 +1,30 @@
+# 聯絡表單的後端：接收 chijiun.com/api/contact 的 POST，驗證 Turnstile 後寄信給站長。
+# 這個檔案只放公開設定。秘密值用 `npx wrangler secret put <名稱>` 存在 Cloudflare：
+#   TURNSTILE_SECRET  Turnstile widget 的 secret key
+#   MAIL_TO           收件信箱（必須是 Email Routing 裡已驗證的 destination address）
+name = "chijiun-contact"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# 只掛在這一個路徑；其他網址照常由 VM 上的 Caddy 提供。
+workers_dev = false
+routes = [{ pattern = "chijiun.com/api/contact", zone_name = "chijiun.com" }]
+
+[vars]
+# 只接受從這些網址送出的請求（比對 Origin 標頭）。
+ALLOWED_ORIGINS = "https://chijiun.com"
+# Turnstile 驗證結果裡的 hostname 必須是其中之一；留空表示不檢查（只用於本機測試金鑰）。
+TURNSTILE_HOSTNAMES = "chijiun.com"
+# 寄件人，必須在已啟用 Email Routing 的網域底下；不需要真的有這個信箱。
+MAIL_FROM = "contact@chijiun.com"
+
+# 寄信。沒有限制收件人屬性時，只能寄到帳號裡已驗證的 destination address。
+[[send_email]]
+name = "EMAIL"
+
+# 每個訪客 IP 每 60 秒最多 3 次（各機房分開計算，是近似值）。
+# 這個綁定如果無法使用，程式會略過限流，只靠 Turnstile。
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "3110"
+simple = { limit = 3, period = 60 }

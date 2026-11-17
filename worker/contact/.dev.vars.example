@@ -1,0 +1,11 @@
+# 本機測試：複製成 .dev.vars（已被 .gitignore 排除）再執行 npm run dev。
+# 下面是 Cloudflare 公開的 Turnstile 測試金鑰，不是正式金鑰：
+#   1x0000000000000000000000000000000AA  永遠通過
+#   2x0000000000000000000000000000000AA  永遠失敗
+#   3x0000000000000000000000000000000AA  token 已用過（timeout-or-duplicate）
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+# 本機 wrangler dev 不會真的寄信，只會把信存成檔案，所以這裡填假信箱即可。
+MAIL_TO=inbox@example.com
+# 本機預覽的網址；測試金鑰回傳的 hostname 一律是 example.com，所以不檢查。
+ALLOWED_ORIGINS=http://localhost:8137
+TURNSTILE_HOSTNAMES=

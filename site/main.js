@@ -1,4 +1,4 @@
-import { me, interests, research, experience, projects, more, skills, cats, contact, repoUrl } from './data.js?v=a2ba0671';
+import { me, interests, research, experience, projects, more, skills, cats, contact, repoUrl } from './data.js?v=f63a8135';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
@@ -103,7 +103,7 @@ function say(text) {
   clearTimeout(sayTimer);
   sayTimer = setTimeout(() => { stMsg.textContent = ''; stMsg.classList.remove('say'); }, 4200);
 }
-const contactOn = Boolean(contact.accessKey || contact.email);
+const contactOn = Boolean((contact.endpoint && contact.turnstileSiteKey) || contact.email);
 const SECTIONS = [['top', 'about.md'], ['research', 'research.md'], ['experience', 'experience/'], ['projects', 'projects.md']];
 if (contactOn) {
   $('contact').hidden = false;
@@ -601,31 +601,124 @@ if (contactOn) {
     direct.hidden = false;
   }
   const form = $('contact-form'), note = $('contact-note'), send = $('contact-send');
+  const canSend = Boolean(contact.endpoint && contact.turnstileSiteKey);
+
+  // Turnstile (bot check) loads only when someone starts using the form, and runs
+  // invisibly unless Cloudflare decides it needs a click.
+  let tsLoad = null, tsWidget = null, tsPending = null;
+  const tsBox = el('div', 'ts');
+  const loadTurnstile = () => tsLoad ??= new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.async = true;
+    s.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error('turnstile')));
+    s.onerror = () => { tsLoad = null; reject(new Error('turnstile')); };
+    document.head.append(s);
+  });
+  const settle = (ok, value) => { const p = tsPending; tsPending = null; if (p) { clearTimeout(p.timer); ok ? p.resolve(value) : p.reject(value); } };
+  const getToken = async () => {
+    const ts = await loadTurnstile();
+    return new Promise((resolve, reject) => {
+      settle(false, new Error('superseded'));
+      // Give up if nothing happens; cleared once an interactive challenge is shown.
+      tsPending = { resolve, reject, timer: setTimeout(() => settle(false, new Error('timeout')), 30000) };
+      if (tsWidget == null) {
+        tsWidget = ts.render(tsBox, {
+          sitekey: contact.turnstileSiteKey,
+          action: 'contact',
+          execution: 'execute',
+          appearance: 'interaction-only',
+          retry: 'never',
+          theme: root.dataset.theme === 'light' ? 'light' : 'dark',
+          callback: (token) => settle(true, token),
+          'error-callback': () => { settle(false, new Error('turnstile')); return true; },
+          'timeout-callback': () => settle(false, new Error('timeout')),
+          'expired-callback': () => ts.reset(tsWidget),
+          'before-interactive-callback': () => { if (tsPending) clearTimeout(tsPending.timer); },
+        });
+      } else {
+        ts.reset(tsWidget);
+      }
+      ts.execute(tsBox);
+    });
+  };
+  // Start the check as soon as someone is in the form, so the token is usually ready by
+  // the time they press send. Tokens last 300 s; reuse one only if it is clearly fresh.
+  let tsEarly = null;
+  const takeToken = () => {
+    const early = tsEarly;
+    tsEarly = null;
+    if (early && Date.now() - early.at < 240000) return early.promise.catch(() => getToken());
+    return getToken();
+  };
+  if (canSend) {
+    form.querySelector('.row').append(tsBox);
+    form.addEventListener('focusin', () => {
+      if (tsEarly || send.disabled) return;
+      const promise = getToken();
+      promise.catch(() => {});
+      tsEarly = { at: Date.now(), promise };
+    });
+  }
+
+  const ERRORS = {
+    bad_email: 'Email 格式好像不對，再檢查一下。',
+    too_long: '內容太長了，精簡一點再寄。',
+    rate_limited: '短時間內送太多次了。',
+    turnstile_failed: '沒有通過機器人驗證。',
+  };
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (send.disabled) return;
     const d = new FormData(form);
     if (d.get('botcheck')) return;
     const name = d.get('name').trim(), email = d.get('email').trim(), message = d.get('message').trim();
+    // `required` lets whitespace-only values through.
+    if (!name || !email || !message) {
+      note.textContent = '三個欄位都要填喔。';
+      return;
+    }
     const subject = `[chijiun.com] ${name} 的來信`;
-    if (!contact.accessKey) {
-      location.href = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${message}\n\n— ${name} <${email}>`)}`;
+    const mailto = contact.email
+      ? `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${message}\n\n— ${name} <${email}>`)}`
+      : '';
+    if (!canSend) {
+      location.href = mailto;
       note.textContent = '已經幫你開啟郵件程式，按下寄出就可以了。';
       return;
     }
     send.disabled = true;
     note.textContent = '寄送中…';
+    let error = '';
     try {
-      const res = await fetch('https://api.web3forms.com/submit', {
+      const token = await takeToken();
+      const res = await fetch(contact.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ access_key: contact.accessKey, subject, from_name: name, name, email, message }),
+        body: JSON.stringify({ name, email, message, botcheck: '', token }),
+        signal: AbortSignal.timeout(15000),
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        error = json.error || '';
+        throw new Error(error || `HTTP ${res.status}`);
+      }
       form.reset();
       note.textContent = '寄出了，謝謝你。我會盡快回信。';
     } catch {
-      note.textContent = '寄送失敗，請稍後再試，或改用 LinkedIn 聯絡我。';
+      const reason = ERRORS[error] || '寄送失敗。';
+      // A typo in the address: let them fix it rather than switch to the mail app.
+      if (error === 'bad_email' || error === 'too_long') {
+        note.textContent = reason;
+      } else if (mailto) {
+        // Keep what the visitor typed, and hand the same message to their own mail app.
+        const link = el('a', '', '改用你的郵件程式寄出');
+        link.href = mailto;
+        note.replaceChildren(`${reason}可以稍後再試，或`, link, '（內容已經幫你帶好）。');
+      } else {
+        note.textContent = `${reason}請稍後再試，或改用 LinkedIn 聯絡我。`;
+      }
     } finally {
       send.disabled = false;
     }

@@ -1,0 +1,4 @@
+node_modules/
+.wrangler/
+# 本機測試用的 secret（正式環境用 wrangler secret put，不放檔案）
+.dev.vars

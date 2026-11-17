@@ -25,13 +25,47 @@
   - 首屏鍵盤：按實體鍵盤的字母鍵或點鍵帽，顯示那項技能用在哪裡（一進頁面先選好第一項，鍵帽外框與讀出框的色條對應，頁面上不另外寫操作說明）；數字鍵 1、2、3、0 跳到各區塊。
   - 「經歷」是一個編輯器視窗：點一下之後用 `j`/`k` 移動、`h`/`l` 切換檔案、Enter 開連結。
   - `:` 或 `/` 開指令列（`:theme`、`:e awards`、`:sound`、`:fx`、`:blog`、`:help`），Ctrl K 搜尋。
-- 聯絡表單：在 `data.js` 的 `contact` 填入 Web3Forms 的 access key（或 email）後才會顯示。
+- 聯絡表單：前端在 `site/`，寄信的後端是 `worker/contact/` 的 Cloudflare Worker（見下方「聯絡表單後端」）。
+  - `data.js` 的 `contact.endpoint`（`/api/contact`）與 `contact.turnstileSiteKey` 都填了，表單才會交給 Worker 寄信；這兩個值本來就是公開的。
+  - 還沒設定、Turnstile 載入失敗、或 Worker 回錯誤／逾時：改用 `email` 開啟訪客自己的郵件程式，內容會先帶好。
+  - 防垃圾信：Cloudflare Turnstile（大多數人看不到，疑似機器人才要點一下）、隱藏的 `botcheck` 蜜罐欄位、Worker 端的來源網域檢查與每 IP 限流。
 - `site/blog/`：文章區，一樣是純靜態、沒有 build 步驟。
   - `index.html`：文章列表，一列一篇，只放日期與標題。新增文章時，在 `post-list` 裡複製一個 `<li>`。
   - `oracle-free-arm-vm.html`：文章本體，以它為範本複製即可；文章裡不要放 OCID、IP、信箱、金鑰。
   - `blog.css`：文章專用樣式，配色與 nav、footer 沿用 `site/styles.css`。
   - `toc.js`：文章目錄。依文章裡有 `id` 的 `h1`～`h6` 自動產生，並保留標題層級的父子關係（`h1` 是文章標題、`h2` 是章節、`h3` 是小節，跳級時掛在最近的上一層）；有子層級的項目可以個別展開或收合，捲動時會自動展開目前所在章節。寬螢幕（1360px 以上）固定在右側，窄螢幕是右下角的「目錄」按鈕。新文章只要幫標題加上 `id`，並載入 `<script src="toc.js" defer>`。
 - `site/404.html`：找不到的網址導回首頁。
+
+## 聯絡表單後端（Cloudflare Worker）
+
+`worker/contact/` 只處理 `chijiun.com/api/contact`，其他網址照常由主機上的 Caddy 提供。它檢查來源網域、欄位、Turnstile 與限流，然後用 Email Routing 的 `send_email` 從 `contact@chijiun.com` 寄到站長信箱，Reply-To 設成訪客的 email。
+
+秘密值不在 repo 裡，也不會送到瀏覽器：
+
+| 名稱 | 放哪裡 | 公開？ |
+| --- | --- | --- |
+| Turnstile site key | `site/data.js` 的 `contact.turnstileSiteKey` | 公開（設計如此） |
+| Turnstile secret key | `wrangler secret put TURNSTILE_SECRET` | 秘密 |
+| 收件信箱 | `wrangler secret put MAIL_TO` | 秘密 |
+| 寄件人、允許的網域 | `worker/contact/wrangler.toml` 的 `[vars]` | 公開 |
+
+第一次設定（在 Cloudflare 後台與本機各做一次）：
+
+1. Cloudflare 後台 → chijiun.com → Email → Email Routing：啟用（會新增 MX、SPF、DKIM 記錄），在 Destination addresses 加入收件信箱並點驗證信。
+2. Cloudflare 後台 → Turnstile：新增 widget，hostname 填 `chijiun.com`、模式選 Managed，記下 site key 與 secret key。
+3. 本機：
+   ```bash
+   cd worker/contact
+   npm ci
+   npx wrangler login
+   npx wrangler deploy
+   npx wrangler secret put TURNSTILE_SECRET
+   npx wrangler secret put MAIL_TO
+   ```
+   （secret 還沒設好之前，Worker 一律回 503，前端會改開郵件程式，不會出錯。）
+4. 把 site key 填進 `site/data.js` 的 `contact.turnstileSiteKey`，執行 `python scripts/version-assets.py` 後 push。
+
+本機測試：把 `worker/contact/.dev.vars.example` 複製成 `.dev.vars`（裡面是 Cloudflare 公開的 Turnstile 測試金鑰），執行 `npm run dev`；本機不會真的寄信，信件內容會印在終端機並存成檔案。
 
 ## 本機預覽
 
