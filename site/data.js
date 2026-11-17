@@ -25,7 +25,7 @@ export const me = {
 //   Until both are set, the form opens the visitor's own mail app instead.
 // email: shown as the direct address, and used for that mail-app fallback (also when the
 //   Worker fails); this address becomes public.
-export const contact = { endpoint: '/api/contact', turnstileSiteKey: '', email: '0311gino@gmail.com' };
+export const contact = { endpoint: '/api/contact', turnstileSiteKey: '0x4AAAAAAGEU0qRD8t7ATlFO', email: '0311gino@gmail.com' };
 
 export const interests = [
   { title: '可信任與隱私保護機器學習', text: 'Verifiable computation、Zero-Knowledge Proof、Differential Privacy、Federated Learning。' },
