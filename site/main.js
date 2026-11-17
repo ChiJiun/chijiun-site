@@ -1,4 +1,4 @@
-import { me, interests, research, experience, projects, more, skills, cats, contact, repoUrl } from './data.js?v=54733223';
+import { me, interests, research, experience, projects, more, skills, cats, contact, repoUrl } from './data.js?v=a2ba0671';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
@@ -14,11 +14,10 @@ const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
 const smooth = reduced ? 'auto' : 'smooth';
 
 // ---------- content ----------
-$('tagline').textContent = `${me.zh} · ${me.tagline}`;
 $('intro').textContent = me.intro;
 $('motto').textContent = me.motto;
 const h1 = $('name');
-h1.setAttribute('aria-label', me.en);
+h1.setAttribute('aria-label', `${me.en} ${me.zh}`);
 const letters = [];
 me.en.split(' ').forEach((word) => {
   const w = el('span', 'w');
@@ -26,6 +25,11 @@ me.en.split(' ').forEach((word) => {
   [...word].forEach((c) => { const s = el('span', 'ch', c); letters.push(s); w.append(s); });
   h1.append(w);
 });
+{
+  const zh = el('span', 'zh', me.zh);
+  zh.setAttribute('aria-hidden', 'true');
+  h1.append(zh);
+}
 {
   const first = el('a', 'btn main', '看研究');
   first.href = '#research';
@@ -70,7 +74,7 @@ projects.forEach((p) => {
   top.append(el('span', '', p.tag), el('span', '', p.year));
   const chips = el('div', 'chips');
   p.stack.forEach((s) => chips.append(el('span', 'chip', s)));
-  a.append(top, el('h3', '', p.title), el('span', 'sub', p.sub), el('p', '', p.desc), el('p', 'note', p.note), chips);
+  a.append(top, el('h3', '', p.title), el('p', '', p.desc), el('p', 'note', p.note), chips);
   li.append(a);
   $('cards').append(li);
 });
@@ -91,15 +95,13 @@ for (const c of Object.values(cats)) {
 }
 
 // ---------- status bar ----------
-const IDLE = finePointer ? '字母鍵：技能 · 1–4：區塊 · :：指令 · Ctrl K：搜尋' : '點鍵帽看技能 · 右上角開指令面板';
 const stMsg = $('st-msg');
 let sayTimer = 0;
-stMsg.textContent = IDLE;
 function say(text) {
   stMsg.textContent = text;
   stMsg.classList.add('say');
   clearTimeout(sayTimer);
-  sayTimer = setTimeout(() => { stMsg.textContent = IDLE; stMsg.classList.remove('say'); }, 4200);
+  sayTimer = setTimeout(() => { stMsg.textContent = ''; stMsg.classList.remove('say'); }, 4200);
 }
 const contactOn = Boolean(contact.accessKey || contact.email);
 const SECTIONS = [['top', 'about.md'], ['research', 'research.md'], ['experience', 'experience/'], ['projects', 'projects.md']];
@@ -326,15 +328,6 @@ else (window.requestIdleCallback ?? ((run) => setTimeout(run, 200)))(fx.boot, { 
 
 // ---------- skill readout ----------
 const hud = $('hud');
-function hudIdle() {
-  hud.replaceChildren();
-  hud.classList.remove('empty');
-  const p = el('p', 'hud-idle');
-  p.append('> ', finePointer ? '按鍵盤上任何一個字母鍵，或點鍵帽' : '點任何一個鍵帽', el('span', 'caret'));
-  const q = el('p', 'hud-idle');
-  q.append('每個鍵帽是一項技能，這裡會顯示', el('b', '', '我用它做了什麼'), '。');
-  hud.append(p, q);
-}
 function hudSkill(key, s) {
   const c = cats[s.cat];
   hud.replaceChildren();
@@ -353,7 +346,6 @@ function hudEmpty(key) {
   top.append(el('span', 'hud-key', key.toUpperCase()), el('span', 'hud-name', '這個鍵還空著'));
   hud.append(top, el('p', 'hud-desc', '還在學新東西，學會了再補上。'));
 }
-hudIdle();
 
 // ---------- keyboard ----------
 const NAV = { 1: ['研', 'research', '研究'], 2: ['經', 'experience', '經歷'], 3: ['作', 'projects', '作品'], 0: ['↑', 'top', '頁首'] };
@@ -420,12 +412,20 @@ function clack() {
 function toggleSound() {
   soundOn = !soundOn;
   $('sound').setAttribute('aria-pressed', String(soundOn));
-  $('sound').textContent = `按鍵音效：${soundOn ? '開' : '關'}`;
+  $('sound').textContent = `音效：${soundOn ? '開' : '關'}`;
   clack();
 }
 $('sound').addEventListener('click', toggleSound);
 
+// 一進頁面就先選好一項技能：亮著的鍵帽和上方的讀出框對在一起，不用另外寫操作說明。
 let active = null;
+function select(k) {
+  active?.classList.remove('active');
+  active = keys.get(k);
+  active.classList.add('active');
+  hudSkill(k, skills[k]);
+}
+select(Object.keys(skills)[0]);
 function press(k) {
   const b = keys.get(k);
   if (!b || b.classList.contains('down')) return;
@@ -437,13 +437,13 @@ function press(k) {
     fx.pulse();
   }
   if (skills[k]) {
-    active?.classList.remove('active');
-    active = b;
-    b.classList.add('active');
-    hudSkill(k, skills[k]);
+    select(k);
   } else if (NAV[k]) {
     goTo(NAV[k][1]);
   } else if (k !== ' ') {
+    // 讀出框不再顯示上一項技能，鍵帽的選取外框也要跟著清掉。
+    active?.classList.remove('active');
+    active = null;
     hudEmpty(k);
   }
 }
@@ -537,7 +537,6 @@ const editor = (() => {
     else if (top < buf.scrollTop) buf.scrollTop = top - 10;
     else if (bottom > buf.scrollTop + buf.clientHeight) buf.scrollTop = bottom - buf.clientHeight + 30;
     $('ed-pos').textContent = `${next + 1}:${lines.length}`;
-    $('ed-hint').textContent = lines[next][0] === 'link' ? `Enter 開啟 ${lines[next][1]}` : 'j/k 移動 · h/l 切換檔案 · Enter 開連結 · Esc 離開';
   }
   function open(i) {
     cur = (i + files.length) % files.length;
@@ -546,7 +545,6 @@ const editor = (() => {
       b.setAttribute('aria-selected', String(n === cur));
       if (n === cur) tabs.scrollLeft = Math.max(0, b.offsetLeft - 24);
     });
-    $('ed-title').textContent = `chijiun — ~/experience/${files[cur].name}`;
     move(cursors[cur]);
   }
   function openLink() {
@@ -597,9 +595,10 @@ const editor = (() => {
 // ---------- contact form ----------
 if (contactOn) {
   if (contact.email) {
-    const direct = el('a', '', contact.email);
+    const direct = $('contact-direct');
+    direct.textContent = contact.email;
     direct.href = `mailto:${contact.email}`;
-    $('contact-direct').append('也可以直接寄到 ', direct, '。');
+    direct.hidden = false;
   }
   const form = $('contact-form'), note = $('contact-note'), send = $('contact-send');
   form.addEventListener('submit', async (e) => {

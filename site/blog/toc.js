@@ -22,9 +22,6 @@
   const panel = document.createElement('div');
   panel.id = 'toc-panel';
   panel.className = 'toc-panel';
-  const title = document.createElement('p');
-  title.className = 'toc-title';
-  title.textContent = '目錄';
   const root = document.createElement('ol');
   root.className = 'toc-root';
 
@@ -75,7 +72,7 @@
     stack.push(node);
   });
 
-  panel.append(title, root);
+  panel.append(root);
   nav.append(btn, panel);
   document.body.appendChild(nav);
 

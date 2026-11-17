@@ -6,7 +6,6 @@ export const repoUrl = gh;
 export const me = {
   zh: '翁祺鈞',
   en: 'Chi-Jiun Wong',
-  tagline: 'NCU CSIE × Finance',
   intro:
     '中央大學資訊工程學系、輔修財務金融，預計 2027 年畢業。研究做的是聯邦學習裡差分隱私的零知識證明，目前在國泰金控區塊鏈技術發展科實習。興趣在區塊鏈、金融科技與軟體工程。',
   rule: '這裡把「我做的」和「團隊做的」分開寫，每個數字都附上它的規模與限制。',
@@ -126,36 +125,31 @@ export const experience = [
 
 export const projects = [
   {
-    tag: '黑客松 · 決賽入選', year: '2026.08', title: '多源加密市場分析 AI Agent',
-    sub: '2026 雲湧智生：臺灣生成式 AI 應用黑客松 · HOYA BIT 命題',
+    tag: '雲湧智生黑客松 · 決賽入選', year: '2026.08', title: '多源加密市場分析 AI Agent',
     desc: '針對加密資產問題自主蒐集多源資料、交叉驗證訊號，產出每個 claim 都能回溯來源的結構化報告，並區分 fact → inference → conclusion。',
     note: '我負責 evidence／S3 儲存基礎設施、異常偵測規則、orchestrator 整合、測試與報告驗證。',
     stack: ['Amazon Bedrock', 'Lambda', 'S3', 'Python'], href: gh('aws-hoyabit'),
   },
   {
-    tag: '黑客松 · 第二名', year: '2025.10', title: 'OnChain Bank',
-    sub: 'RWA Hackathon Taiwan 2025 · 團隊「五告Sui」',
+    tag: 'RWA Hackathon Taiwan · 第二名', year: '2025.10', title: 'OnChain Bank',
     desc: 'RWA 主題的鏈上銀行 Demo：NTD 代幣、定存與信用卡合約，搭配 Self Onchain SDK 的身份驗證。',
     note: '我負責 NTD 代幣的 ERC-20 合約（帳戶凍結與轉帳限制）、定存與信用卡合約的前端串接，以及 hooks 重構。Self 的 ZK 驗證合約是隊友做的。',
     stack: ['Solidity', 'ERC-20', 'React'], href: gh('Hackathon_ChainBank'),
   },
   {
     tag: '課程服務', year: '', title: 'AI 統計學 FRQ 自動評分系統',
-    sub: 'StatsDiscordBot',
     desc: '學生在 Discord 交統計學 Free Response Questions 的作答，LLM 依評分規準檢視並產生回饋。服務對象約 150 位學生，長期運作。',
     note: '我建置並維運：Discord Bot、rubric-guided prompting、SQLite、Google Drive、HTML 報告，部署在 GCP VM／Linux。',
     stack: ['Python', 'Discord', 'LLM', 'GCP'], href: gh('StatsDiscordBot'),
   },
   {
-    tag: '課程專案', year: '2025', title: '區塊鏈網路投票系統',
-    sub: '國立政治大學「區塊鏈技術與應用」',
+    tag: '政大課程專案', year: '2025', title: '區塊鏈網路投票系統',
     desc: '可在 Ethereum testnet 運作的投票 prototype：Commit 階段只上鏈 hash，Reveal 階段揭露選票與 nonce，交給合約驗證。',
     note: '限制：設計目標是降低開票前選票內容曝光，不宣稱完整的投票者匿名。',
     stack: ['Solidity', 'React', 'ethers.js', 'Wagmi', 'RainbowKit'], href: gh('BlockchainVotingSystem'),
   },
   {
-    tag: '團隊專案', year: '2026.04 – 06', title: 'NCU AI Guidance',
-    sub: 'AI 課程與研究探索平台 · 五人跨系團隊',
+    tag: '五人跨系團隊專案', year: '2026.04 – 06', title: 'NCU AI Guidance',
     desc: '結合知識圖譜、多信號檢索與 RAG 的課程與研究探索平台。',
     note: '我負責部署與服務化：Firebase Hosting、Render、Cloudinary、Google 登入、PostgreSQL 聊天紀錄、Qdrant 監控與 CI／Secrets 管理（54 commits）。',
     stack: ['Firebase', 'Render', 'PostgreSQL', 'Qdrant'], href: gh('NCU_AI_Guidance'),

@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>免費雲端主機：Oracle Always Free ARM VM 的額度、PAYG、費用與部署流程 · 翁祺鈞</title>
-    <meta name="description" content="Oracle Always Free ARM 主機的免費額度、要不要升級 PAYG、其他雲端同規格的牌價，以及申請主機並部署個人網站的流程。" />
-    <meta property="og:title" content="免費雲端主機：Oracle Always Free ARM VM 的額度、PAYG、費用與部署流程" />
-    <meta property="og:description" content="Oracle 免費 ARM 主機的額度、PAYG、其他雲端的價格，以及申請與部署流程。" />
+    <title>Oracle 免費 ARM 主機：先升級 PAYG 才建得起來 · 翁祺鈞</title>
+    <meta name="description" content="Oracle Always Free 的 ARM 主機，免費帳號多半只會遇到 Out of host capacity；升級成 Pay As You Go 後通常馬上建得起來，額度內仍不收費。整理社群與官方的說法、升級方式、避免被收費的設定與部署流程。" />
+    <meta property="og:title" content="Oracle 免費 ARM 主機：先升級 PAYG 才建得起來" />
+    <meta property="og:description" content="免費帳號多半建不起來的 ARM 主機，升級 PAYG 後通常馬上建成，額度內仍不收費。" />
     <meta property="og:type" content="article" />
     <meta property="og:url" content="https://chijiun.com/blog/oracle-free-arm-vm.html" />
     <meta name="theme-color" content="#0c0c0b" />
@@ -14,8 +14,8 @@
     <script>
       try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
     </script>
-    <link rel="stylesheet" href="../styles.css?v=637432bb" />
-    <link rel="stylesheet" href="blog.css?v=8b17717f" />
+    <link rel="stylesheet" href="../styles.css?v=fa4d8c20" />
+    <link rel="stylesheet" href="blog.css?v=81d61f18" />
   </head>
   <body class="blog">
     <a class="skip" href="#main">跳到主要內容</a>
@@ -34,53 +34,75 @@
 
       <article class="post">
         <header>
-          <h1 id="top">免費雲端主機：Oracle Always Free ARM VM 的額度、PAYG、費用與部署流程</h1>
-          <div class="post-meta">2026-11-13 · 約 8 分鐘讀完</div>
-          <ul class="tags"><li>Oracle Cloud</li><li>Always Free</li><li>ARM</li><li>PAYG</li><li>部署</li></ul>
-          <p class="lead">Oracle Cloud 的 Always Free 提供一台長期免費的 ARM 雲端主機（2 核、12 GB 記憶體）。這篇整理它的免費額度、是否要升級 PAYG、其他雲端同規格的牌價，以及我申請主機並部署個人網站的流程。</p>
+          <h1 id="top">Oracle 免費 ARM 主機：先升級 PAYG 才建得起來</h1>
+          <div class="post-meta"><time datetime="2026-11-13">2026-11-13</time> · 更新 <time datetime="2026-11-17">2026-11-17</time></div>
+          <p class="lead">Oracle Cloud 的 Always Free 有一台不會到期的免費 ARM 主機（2 核、12 GB 記憶體）。用免費帳號去建，多半只會得到 <code>Out of host capacity</code>；把帳號升級成 Pay As You Go（PAYG）之後，通常馬上就建得起來，額度內仍然不收費。我自己也是綁卡升級之後，不到一小時就建起來了。</p>
         </header>
 
-        <h2 id="intro">簡介</h2>
-        <p>雲端主機（VM）是租用的一台 24 小時開機、有公開 IP 的虛擬電腦；Always Free 在額度內不收費。A1 主機可能一時建不起來，需要重試：我在東京 region 用腳本試了 24 次、約 42 分鐘成功。文中的識別碼、IP 與金鑰都以 <code>&lt;佔位符&gt;</code> 代替。</p>
-        <ul>
-          <li><a href="https://www.oracle.com/cloud/free/" target="_blank" rel="noopener">Oracle Cloud Free Tier</a>：註冊</li>
-          <li><a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">Always Free Resources</a>：免費額度明細</li>
-          <li><a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier.htm" target="_blank" rel="noopener">Free Tier 說明文件</a>：試用、Always Free、升級</li>
-          <li><a href="https://www.oracle.com/cloud/price-list/" target="_blank" rel="noopener">Oracle Cloud 價目表</a></li>
-        </ul>
+        <h2 id="capacity">免費帳號為什麼建不起來</h2>
+        <p>A1（<code>VM.Standard.A1.Flex</code>）是 Always Free 裡最搶手的規格。<a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm" target="_blank" rel="noopener">官方文件</a>對 <code>Out of host capacity</code> 的解釋是：home region 暫時沒有 Always Free 規格的容量，可以換 Availability Domain、過一陣子再試，或升級成 PAYG。Always Free 的主機只能建在註冊時選的 home region，註冊後不能改，所以沒辦法靠換區域避開。</p>
+        <p>用腳本重試要等多久，沒有統計，只有個案。常被引用的重試腳本 <a href="https://github.com/hitrov/oci-arm-host-capacity/issues/93" target="_blank" rel="noopener">hitrov/oci-arm-host-capacity 的討論</a>裡（2023 到 2024 年的回報，專案已在 2024 年 8 月封存），有人等了 8 天、28 天、兩個半月，也有人跑了幾個月仍然沒成功。我的 home region 東京也有這類回報：NodeSeek 上有免費帳號<a href="https://www.nodeseek.com/post-820911-1" target="_blank" rel="noopener">搶了兩週、兩個月都沒搶到</a>，也有人<a href="https://www.nodeseek.com/post-939865-1" target="_blank" rel="noopener">等了快一個月後決定升級</a>。</p>
 
-        <h2 id="quota">免費額度</h2>
+        <h2 id="payg">升級 PAYG 之後</h2>
         <table>
-          <thead><tr><th>資源</th><th>額度</th></tr></thead>
+          <thead><tr><td></td><th>免費帳號</th><th>PAYG</th></tr></thead>
           <tbody>
-            <tr><td>A1 ARM 主機</td><td>合計 2 OCPU / 12 GB，可用在一台，或最多切成兩台</td></tr>
-            <tr><td>AMD 小主機</td><td><code>VM.Standard.E2.1.Micro</code> 最多 2 台，每台 1 GB</td></tr>
-            <tr><td>磁碟</td><td>開機磁碟與區塊磁碟合計 200 GB</td></tr>
-            <tr><td>出站流量</td><td>每月 10 TB</td></tr>
-            <tr><td>位置</td><td>只能建在 home region（註冊時選的 region）</td></tr>
+            <tr><th>建 A1</th><td>多半 <code>Out of host capacity</code>，靠腳本重試幾天到幾個月</td><td>多數人回報升級後直接建成</td></tr>
+            <tr><th>A1 免費額度</th><td>2 OCPU / 12 GB</td><td>同樣額度內不收費，超出的部分照牌價</td></tr>
+            <tr><th>閒置回收</th><td>7 天內使用率低於 20% 可能被回收</td><td>文件沒寫豁免；少數使用者回報多年沒被回收</td></tr>
+            <tr><th>會不會被收費</th><td>不會</td><td>超出額度就會</td></tr>
           </tbody>
         </table>
         <ul>
-          <li>7 天內 CPU 第 95 百分位低於 20%，且網路、記憶體（只看 A1）也低於 20%，主機可能被當成閒置回收。</li>
-          <li>映像檔只有 Linux。Reserved Public IP 是否免費，文件沒寫，我沒建。</li>
-          <li>我的帳號查到的 A1 配額上限是 16 核 / 96 GB，那是上限，不是免費額度，規格要固定在 2 / 12。</li>
+          <li><a href="https://news.ycombinator.com/item?id=49183750" target="_blank" rel="noopener">Hacker News 2026 年 8 月的討論</a>：有人在 Ashburn 用新帳號一直遇到容量錯誤，升級 PAYG（等了一天）之後就不再遇到；也有人說不升級就一直沒有容量，升級後正常、用量仍在免費額度內。</li>
+          <li><a href="https://github.com/hitrov/oci-arm-host-capacity" target="_blank" rel="noopener">hitrov/oci-arm-host-capacity</a>：重試腳本的作者自己在說明裡建議升級 PAYG；<a href="https://github.com/hitrov/oci-arm-host-capacity/issues/93" target="_blank" rel="noopener">討論裡</a>有人升級後第一次就成功，也有人兩個帳號跑腳本兩天沒結果，送出升級幾小時後收到確認信，當下就建成。</li>
+          <li><a href="https://www.sevenishere.com/zh-TW/blog/oracle-cloud-setup-part-1" target="_blank" rel="noopener">台灣開發者的紀錄（2026-05）</a>：同樣是東京，免費帳號建 A1 被回報容量不足，升級約兩小時後通過，重新建立就成功。</li>
+          <li><a href="https://linux.do/t/topic/3100605" target="_blank" rel="noopener">LINUX DO（2026-10）</a>：多則回覆說沒升級只能靠腳本搶，升級後馬上開得出來。</li>
+        </ul>
+        <p>我的 home region 是東京，腳本失敗後等 60 秒再送。重試期間我綁了信用卡升級 PAYG，沒有另外等確認信，之後主機就建起來了：第 24 次，從開始重試算約 42 分鐘。</p>
+        <p>官方文件把升級列為處理方式之一，但沒有寫付費帳號有優先權，也沒有保證升級後一定有容量；<a href="https://www.oracle.com/cloud/free/faq/" target="_blank" rel="noopener">Free Tier FAQ</a> 只寫 PAYG 帳號適用的容量限制和 Always Free 帳號不同，沒有說明這個限制指的是什麼。「付費帳號優先」是社群的推論。</p>
+        <p>升級也不是保證，我找到三個反例：同一串 Hacker News 有人設好 PAYG 之後仍然拿不到免費的 ARM 主機，最後改成每月付費租用；<a href="https://linux.do/t/topic/3153535" target="_blank" rel="noopener">LINUX DO 在 2026 年 11 月</a>有人說已經升級但一直開不出來，沒有後續說明；GitHub 討論裡有人升級後腳本仍然回報沒有容量，但他從 Console 手動建得起來。</p>
+
+        <h2 id="upgrade">升級方式</h2>
+        <ol>
+          <li>Console 頂端橫幅點 Upgrade；沒看到就點左上角 Oracle Cloud 標誌，在首頁右側欄找。<a href="https://docs.oracle.com/en-us/iaas/Content/Billing/Tasks/changingpaymentmethod.htm" target="_blank" rel="noopener">官方說明</a>另外列了選單路徑 Billing &amp; Cost Management → Upgrade and Manage Payment，但註明適用對象是美國的新帳號，我沒走過。</li>
+          <li>信用卡會被暫時授權 100 美元，台灣的卡會收到一筆約新台幣三千多元的國外交易通知。Oracle 端會立即撤銷，實際退回的時間看發卡銀行。不接受虛擬卡、預付卡與一次性卡。</li>
+          <li>官方寫升級要一到兩天，社群回報從一兩個小時到一天都有，完成時會收到確認信，帳號的 Plan Type 變成 Pay As You Go。我綁完卡沒有另外等確認信，不到 42 分鐘主機就建起來了。</li>
+        </ol>
+        <ul>
+          <li>升級後不能降回免費帳號。</li>
+          <li>試用期內升級，300 美元的試用額度會保留到 30 天期滿或用完，之後才開始計費。</li>
+          <li>升級可能失敗：有人換了幾家銀行的卡都在 100 美元授權被拒（<a href="https://github.com/hitrov/oci-arm-host-capacity/issues/104" target="_blank" rel="noopener">GitHub</a>），也有人回報多張卡升級失敗之後帳號被關閉（<a href="https://www.v2ex.com/t/1197003" target="_blank" rel="noopener">V2EX</a>）。這些都是個案；社群的建議是用註冊時的同一張卡。</li>
         </ul>
 
-        <h2 id="payg">PAYG（Pay As You Go）</h2>
+        <h2 id="billing">升級後不被收費</h2>
+        <p>升級後 Always Free 的資源仍然免費，只收超出額度的部分。</p>
+        <table>
+          <thead><tr><th>資源</th><th>免費額度</th></tr></thead>
+          <tbody>
+            <tr><td>A1 ARM 主機</td><td>合計 2 OCPU / 12 GB，可用在一台，或切成兩台</td></tr>
+            <tr><td>AMD 小主機</td><td><code>VM.Standard.E2.1.Micro</code> 最多 2 台，每台 1 GB</td></tr>
+            <tr><td>磁碟</td><td>開機磁碟與區塊磁碟合計 200 GB，備份 5 份</td></tr>
+            <tr><td>出站流量</td><td>每月 10 TB</td></tr>
+          </tbody>
+        </table>
         <ul>
-          <li><strong>Free Trial</strong>：$300 抵用額度、最多 30 天。多數使用者註冊時需要手機與信用卡，官方寫升級前不會扣款。</li>
-          <li><strong>Always Free</strong>：不會到期，試用結束後已建好的資源不中斷。試用結束時若 A1 超過 2 OCPU / 12 GB，全部 A1 會被停用，30 天後刪除，除非升級。</li>
-          <li><strong>PAYG</strong>：付費帳號、無承諾期；Always Free 資源仍然免費，超出額度的部分才計費。</li>
+          <li><strong>A1 固定在 2 OCPU / 12 GB。</strong>2026 年 6 月 Oracle 把文件上的額度從 4 / 24 改成 2 / 12（<a href="https://www.infoq.com/news/2026/07/oracle-cloud-free-tier-limits/" target="_blank" rel="noopener">InfoQ 的報導</a>）。文件寫的是所有帳號每月 1,500 OCPU 小時、9,000 GB 小時，<a href="https://www.oracle.com/cloud/price-list/" target="_blank" rel="noopener">價目表</a>卻仍寫付費帳號 3,000 / 18,000。社群的回報不一致：LINUX DO 到 2026 年 11 月仍有多人說 PAYG 跑 4 / 24 沒被收費（<a href="https://linux.do/t/topic/3045763" target="_blank" rel="noopener">10 月</a>、<a href="https://linux.do/t/topic/3153535" target="_blank" rel="noopener">11 月</a>），10 月那串也有一則說會扣費；<a href="https://www.nodeseek.com/post-803618-1" target="_blank" rel="noopener">NodeSeek 在 2026 年 7 月</a>有人回報被扣款，發文者推測被扣的是 6 月改額度之後才升級的帳號（未經官方證實），現在才升級的人正屬於這一類；8 月 <a href="https://news.ycombinator.com/item?id=49183750" target="_blank" rel="noopener">Hacker News</a> 也有 PAYG 使用者跑 4 / 24，1 美元的警示響了。所以我固定在確定免費的 2 / 12。我的帳號查到的 A1 配額上限是 16 核 / 96 GB，那是上限，不是免費額度。</li>
+          <li><strong>其他會被收費的地方：</strong>磁碟合計超過 200 GB（刪掉主機後留下的磁碟也算）、建在 home region 以外的資源、選到付費的規格、多開主機。</li>
+          <li><strong>Budget 只會寄信。</strong>官方稱它是軟性上限，本身不會停機（要自動處理得自己用 Events 串自動化），警示每 24 小時才評估一次，所以擋不住費用（<a href="https://docs.oracle.com/en-us/iaas/Content/Billing/Concepts/budgetsoverview.htm" target="_blank" rel="noopener">官方說明</a>）。社群的做法是設一個 1 美元的 Budget 當警示。</li>
+          <li><strong>Compartment Quota 才是硬上限。</strong>它限制的是能建多少資源（<a href="https://docs.oracle.com/en-us/iaas/Content/Quotas/Concepts/resourcequotas_topic-Compute_Quotas.htm" target="_blank" rel="noopener">官方說明</a>）。把 A1 鎖在免費額度內的寫法如下。官方頁面沒有 A1 的範例，這是依其他規格的範例類推，我沒有實際套用過；這兩個 quota 以 Availability Domain 為範圍，每個 AD 各算一次，三個 AD 的 region 照這樣寫合計可以建到 6 OCPU / 36 GB，要鎖在 2 / 12 得用 <code>where request.ad</code> 只留一個 AD：
+<pre><code>set compute-core quota standard-a1-core-count to 2 in tenancy
+set compute-memory quota standard-a1-memory-count to 12 in tenancy</code></pre></li>
+          <li><strong>閒置回收。</strong>官方條件是 7 天內 CPU 第 95 百分位、網路、記憶體（只看 A1）都低於 20%。現行文件沒有寫 PAYG 是否豁免；社群認為不會被回收，依據是 Oracle 2023 年寄給使用者的通知信（<a href="https://www.51sec.org/2023/05/16/oracle-cloud-cleaning-up-idle-compute-instances-how-to-keep-it/" target="_blank" rel="noopener">第三方轉述</a>）與少數 PAYG 使用者的長期經驗。</li>
+          <li>映像檔只有 Linux。Reserved Public IP 是否免費，文件沒寫，我沒建。</li>
         </ul>
-        <p><strong>一定要升級嗎？</strong>社群上常有人說，一定要先升級成 PAYG 才申請得到這台免費主機。這是社群的說法：官方文件沒有寫這個要求，也沒有寫升級會提高成功率。官方寫的是：遇到 <code>out of host capacity</code> 錯誤，代表 home region 暫時缺少 Always Free 的 shape，可以換 Availability Domain、稍後再試，或升級 PAYG 以使用更多種運算資源。我在重試期間升級了，但沒確認生效時間，無法驗證這個說法。</p>
-        <p><strong>怎麼升級：</strong>Console 頂端橫幅點 Upgrade；沒看到就點左上角 Oracle Cloud 標誌，在首頁右側欄找。</p>
 
         <h2 id="cost">其他雲端的費用</h2>
         <p>2026-11-13 的公開牌價（不是我的帳單）：USD、每月 730 小時、含 50 GB 磁碟、不含稅與 IP 費。沒有任何一家剛好是 2 核 12 GB ARM，只能比最接近的規格。費用通常由運算（按小時）、磁碟（按 GB 月）、出站流量組成，有些另收公有 IP。</p>
         <table>
           <thead><tr><th>服務商</th><th>機型</th><th>區域</th><th>每月約</th></tr></thead>
           <tbody>
-            <tr><td>Oracle（PAYG）</td><td>A1：2 OCPU、12 GB</td><td>—</td><td>$29</td></tr>
+            <tr><td>Oracle（牌價）</td><td>A1：2 OCPU、12 GB</td><td>—</td><td>$29</td></tr>
             <tr><td>AWS</td><td>r6g.large：2 vCPU、16 GiB</td><td>東京</td><td>$94</td></tr>
             <tr><td>AWS</td><td>m6g.large：2 vCPU、8 GiB</td><td>東京</td><td>$77</td></tr>
             <tr><td>Google Cloud</td><td>t2a-standard-2：2 vCPU、8 GiB</td><td>新加坡</td><td>$75</td></tr>
@@ -90,13 +112,13 @@
           </tbody>
         </table>
         <ul>
-          <li>Oracle：2 × 730 × $0.01 + 12 × 730 × $0.0015 + 50 × $0.0255 ≈ $29.02。</li>
+          <li>Oracle：2 × 730 × $0.01 + 12 × 730 × $0.0015 + 50 × $0.0255 ≈ $29.02。這是沒有免費額度時的牌價，額度內實付 0。</li>
           <li>AWS 公有 IPv4 另計約 $3.65/月，未列入；Google Cloud 的 T2A 沒有東京，用新加坡；Hetzner 是歐元、不含 VAT，且我查到時顯示暫時無法購買，不能直接比較。</li>
           <li>出站流量：Oracle 每月 10 TB 免費；AWS、Azure 前 100 GB 免費，之後約每 GB $0.11～$0.12；Google Cloud 約每 GB $0.11～$0.12，我沒查到免費額度。</li>
         </ul>
 
         <h2 id="deploy">部署流程</h2>
-        <p>順序：準備 OCI CLI → 建網路 → 查三個值 → 重複申請主機 → 登入確認 → 部署網站 → 切換網域。</p>
+        <p>順序：準備 OCI CLI → 建網路 → 查三個值 → 申請主機 → 登入確認 → 部署網站 → 切換網域。文中的識別碼、IP 與金鑰都以 <code>&lt;佔位符&gt;</code> 代替。</p>
 
         <h3 id="step-1">步驟 1：準備 OCI CLI</h3>
         <p>Console → My profile → API keys → Add API key，下載私鑰到 <code>~/.oci/oci_api_key.pem</code>，並把畫面顯示的設定存成 <code>~/.oci/config</code>（<code>region</code> 要填 home region）：</p>
@@ -140,7 +162,7 @@ oci compute image list --compartment-id $T --operating-system "Canonical Ubuntu"
 oci iam availability-domain list --compartment-id $T --query "data[].name"</code></pre>
         <p>第三個值是步驟 2 的子網路 OCID。步驟 2、3 在同一個 PowerShell 視窗做（沿用 <code>$T</code>、<code>$vcn</code>）；步驟 4 起是 bash，變數不會帶過去，要換成實際的值。另外準備一把 SSH 金鑰，公鑰在建立主機時交給 Oracle。</p>
 
-        <h3 id="step-4">步驟 4：重複申請主機</h3>
+        <h3 id="step-4">步驟 4：申請主機</h3>
 <pre><code>oci compute instance launch \
   --compartment-id &lt;TENANCY_OCID&gt; \
   --availability-domain &lt;AD_NAME&gt; \
@@ -153,7 +175,7 @@ oci iam availability-domain list --compartment-id $T --query "data[].name"</code
   --assign-public-ip true \
   --ssh-authorized-keys-file &lt;SSH 公鑰檔&gt; \
   --wait-for-state RUNNING</code></pre>
-        <p>這是 bash 語法。我把它放進 bash 迴圈（Windows 用 Git Bash、放背景執行，電腦不能睡眠）：失敗後等 60 秒再送；送出前先用 <code>--display-name</code> 查有沒有同名主機，避免重複開機；每次嘗試寫進 log。</p>
+        <p>帳號升級完成後，通常送一次就會成功。還沒升級，或升級後仍然遇到 <code>Out of host capacity</code>，才需要重試：我把它放進 bash 迴圈（Windows 用 Git Bash、放背景執行，電腦不能睡眠），失敗後等 60 秒再送；送出前先用 <code>--display-name</code> 查有沒有同名主機，避免重複開機；每次嘗試寫進 log。hitrov 腳本的作者建議至少隔 3 到 5 分鐘一次，他推測建立主機的 API 有呼叫次數限制（<a href="https://github.com/hitrov/oci-arm-host-capacity/issues/104" target="_blank" rel="noopener">GitHub</a>）；同一串也有人每 5 分鐘跑一次仍回報帳號被停用，原因不明。</p>
 
         <h3 id="step-5">步驟 5：登入確認</h3>
         <p>用 <code>oci compute instance list</code> 確認狀態是 <code>RUNNING</code> 並查出公開 IP（我的腳本沒有把主機 ID 與 IP 寫進 log，見「踩到的坑」），再用 SSH 登入（Ubuntu 預設使用者是 <code>ubuntu</code>）：</p>
@@ -246,7 +268,7 @@ sudo systemctl reload caddy</code></pre>
 
     <footer class="footer wrap">© 2026 翁祺鈞 Chi-Jiun Wong</footer>
 
-    <script src="toc.js?v=29d0b14b" defer></script>
+    <script src="toc.js?v=e5c090b1" defer></script>
     <script>
       document.getElementById('theme').addEventListener('click', () => {
         const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
