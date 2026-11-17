@@ -19,12 +19,13 @@ export const me = {
 };
 
 // Contact form. The section stays hidden until one of these is filled in.
-// accessKey: a Web3Forms access key (https://web3forms.com). The site sends the mail itself
-//   through their API to the inbox the key was created for. The key is public by design:
-//   whoever copies it can only send mail to that inbox.
-// email: shown as the direct address, and used to open the visitor's own mail app when there
-//   is no accessKey or the request fails; this address becomes public.
-export const contact = { accessKey: '', email: '0311gino@gmail.com' };
+// endpoint + turnstileSiteKey: the form posts to the Cloudflare Worker in worker/contact,
+//   which checks Turnstile and mails the site owner. Both values are public by design; the
+//   Turnstile secret and the receiving inbox live only in the Worker's secrets.
+//   Until both are set, the form opens the visitor's own mail app instead.
+// email: shown as the direct address, and used for that mail-app fallback (also when the
+//   Worker fails); this address becomes public.
+export const contact = { endpoint: '/api/contact', turnstileSiteKey: '', email: '0311gino@gmail.com' };
 
 export const interests = [
   { title: '可信任與隱私保護機器學習', text: 'Verifiable computation、Zero-Knowledge Proof、Differential Privacy、Federated Learning。' },
