@@ -21,7 +21,7 @@
   },
   "ignore": [],
   "ignore_domains": ["www.chijiun.com"],
-  "systemd": ["devspace.service", "celo-faucet-watchdog.service"],
+  "systemd": ["devspace.service", "celo-faucet-watchdog.service", "ethereum-sepolia-sweep.service"],
   "extra_urls": [
     { "name": "mvdis 對外網址", "url": "https://mvdis.chijiun.com/" }
   ]
